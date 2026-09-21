@@ -10,12 +10,13 @@
 
 | # | 항목 | 결과 | 영향 |
 |-|-|-|-|
-| 1 | Semaphore 신뢰 설정 세리머니 | 🟡 존재하나 일부 미확인 | 조건부 채택 |
-| 2 | **ComposeDB 지원 상태** | 🔴 **사실상 중단** | **데이터 계층 재설계 필요** |
+| 1 | Semaphore 신뢰 설정 세리머니 | 🟢 **400명+ 완료, 온체인 앵커** (§7.1) | 채택 확정 |
+| 2 | **ComposeDB 지원 상태** | 🔴 **사실상 중단** — 단 Ceramic One에 의미 보존 (§7.3) | **이전 검증 필요** |
 | 3 | zk-email nullifier 레지스트리 | ⚪ 제공 안 함 | 자체 구현 확정 |
 | 4 | EAS Polygon 배포 | 🟢 배포됨 | 제약 해소 |
 | 5 | Semaphore 그룹 관리자 모델 | 🟢 컨트랙트 가능 | 중앙화 우려 해소 |
 | **+** | **DKIM 레지스트리 권한 모델** | 🔴 **신규 위험** | **설계 변경 필요** |
+| **+** | **국내 도메인 1024비트 DKIM** | 🔴 **신규 위험** (§7.4) | **허용 도메인 기준 필요** |
 
 ---
 
@@ -61,7 +62,7 @@ DKIM 검증은 "이 도메인의 공개키로 서명이 검증되는가"를 확�
 
 ---
 
-## 1. Semaphore 신뢰 설정 세리머니 — 🟡 조건부
+## 1. Semaphore 신뢰 설정 세리머니 — 🟢 확정 (§7.1에서 해소)
 
 **확인된 것**
 
@@ -85,7 +86,7 @@ Semaphore 문서가 세리머니의 존재를 명시합니다.
 
 * 세리머니 존재는 확인됐으므로 **자체 세리머니를 하지 않는다는 방침은 유지**한다.
 * 단, **아티팩트를 런타임에 내려받지 않는다.** 검증한 아티팩트를 저장소에 고정하고 해시를 기록하며, `11_SOVEREIGN_JUDGMENT.md` §5처럼 IPFS에 고정해 CID를 온체인에 앵커링한다. 판단 모델에 적용한 원칙을 증명 아티팩트에도 동일하게 적용한다.
-* 참여자 수와 전사본 위치는 **VS-C1 착수 전까지 확인**한다. 확인되지 않으면 Semaphore 채택을 재검토한다.
+* ~~참여자 수와 전사본 위치 확인~~ → **§7.1에서 해소.** 400명 이상 참여, 2024-07-13 완료, 이더리움 블록 20300394 앵커링.
 
 ---
 
@@ -201,11 +202,156 @@ function updateMember(...) external onlyGroupAdmin(groupId)
 | **VS-C2** | `UserOverrideableDKIMRegistry` 채택, `mainAuthorizer`를 다중서명으로, 지연 7일. nullifier 컨트랙트를 Semaphore 그룹 관리자로 지정. 멤버 제거 경로 없음, 업그레이드 불가 |
 | **VS-G5** | EAS 채택 확정. Polygon·Arbitrum 모두 가능 |
 
-## 7. 남은 확인 항목
+## 7. 잔여 4건 조사 결과 (2차)
+
+§6에서 기한을 붙여 남겨둔 항목을 모두 해소했습니다. **1·3번은 우려가 해소됐고, 4번에서 새로운 보안 요구사항이 나왔습니다.**
+
+| # | 항목 | 결과 |
+|-|-|-|
+| 7.1 | Semaphore 세리머니 상세 | 🟢 **400명+ 참여, 온체인 앵커링** |
+| 7.2 | 아티팩트 공식 배포처 | 🟡 생존하나 저장소는 아카이브 |
+| 7.3 | Ceramic One 유일성 강제 | 🟢 **보존됨. 마이그레이션은 문법 문제** |
+| 7.4 | 국내 도메인 DKIM 실태 | 🔴 **1024비트 광범위 사용** |
+
+---
+
+### 7.1 Semaphore 세리머니 — 🟢 해소
+
+Semaphore V4 문서가 명확히 답합니다.
+
+> "The secure parameters for generating valid proofs with Semaphore circuits were generated in a Trusted Setup Ceremony that was **completed with over 400 participants on 13 July 2024**."
+
+| 항목 | 값 |
+|-|-|
+| 참여자 | **400명 이상** |
+| 완료일 | 2024-07-13 |
+| 온체인 앵커 | 이더리움 블록 [20300394](https://etherscan.io/block/20300394) |
+| 세리머니 페이지 | `ceremony.pse.dev/projects/Semaphore V4 Ceremony` |
+| 감사 | v2.0.0 PSE 감사 보고서 공개 (`circuits`, `contracts` 범위) |
+
+**판단**: `12_ONCHAIN_DEPENDENCIES.md` §2의 논거가 정량적으로 뒷받침됩니다. 400명 전원이 공모해 부산물을 보관해야 위조가 가능하며, 이는 실무적으로 불가능합니다. 소규모 팀이 자체 세리머니를 운영하는 것과 비교 자체가 되지 않습니다. 완료 사실이 이더리움 블록에 앵커링되어 있어 사후 조작도 불가능합니다.
+
+**자체 세리머니를 하지 않는다는 방침을 확정합니다.**
+
+### 7.2 아티팩트 배포처 — 🟡 조건부
+
+| 항목 | 값 |
+|-|-|
+| 패키지 | `@zk-kit/artifacts` v2.0.1 (`@semaphore-protocol/proof`의 의존성) |
+| 호스팅 | `snark-artifacts.pse.dev` (PSE 운영) — **HTTP 200, 생존 확인** |
+| 브라우저 경로 | unpkg URL 직접 사용 |
+| 소스 저장소 | `privacy-scaling-explorations/snark-artifacts` — **아카이브(2025-08-26)** |
+
+CDN은 살아 있지만 이를 뒷받침하는 저장소는 동결 상태입니다. 더 중요한 것은 **기본 동작이 런타임 다운로드**라는 점입니다. 가입 경로 한복판에 외부 CDN 의존이 들어가며, CDN이 멈추면 **신규 가입이 전면 중단**됩니다.
+
+**판단**: §1의 결정을 유지·강화합니다. 아티팩트를 저장소에 고정하고 해시를 기록하며, IPFS에 고정해 CID를 온체인에 앵커링합니다. **런타임 다운로드 경로를 코드에서 제거합니다.** 판단 모델 가중치(`11_SOVEREIGN_JUDGMENT.md` §5)와 동일하게 취급합니다.
+
+### 7.3 Ceramic One의 유일성 강제 — 🟢 해소
+
+§2에서 가장 우려했던 부분입니다. `accountRelation: SET`이 사라지면 반응 유일성을 우리가 직접 구현해야 하고, 그러면 브리징 입력 무결성이 우리 코드 품질에 걸립니다.
+
+**Ceramic One에 그대로 보존되어 있습니다.**
+
+> "A model that defines a `set` accountRelation ensures that each Ceramic user can create a unique set of model instance documents based on the corresponding **field(s) that define the set constraint** in the schema. For example, a marketplace application might want to allow users to leave reviews for products they've purchased, and would want to ensure that **each user can only leave 1 review per product**."
+
+문서의 예시가 우리 `Reaction`과 정확히 같은 구조입니다.
+
+```typescript
+// Ceramic One ModelDefinition (v2.0)
+const reactionModel: ModelDefinition = {
+  version: "2.0",
+  name: "Reaction",
+  accountRelation: { type: "set", fields: ["cardId"] },  // (작성자, 카드) 유일
+  schema: { /* ... */ },
+}
+```
+
+`single`·`set` 타입은 결정론적 초기 이벤트를 요구하며, SDK가 `createSingleton`/`createInstance`로 구분해 처리합니다.
+
+**판단**: ComposeDB 중단의 영향이 크게 줄어듭니다. **데이터 모델의 의미는 그대로 살고, 표현 문법만 GraphQL SDL에서 JSON `ModelDefinition`으로 바뀝니다.**
+
+따라서 VS-B2′의 후보 순위가 정해집니다.
+
+1. **Ceramic One + Ceramic SDK로 이전** — 유일성·서명·앵커링을 모두 제공함이 확인됨. **기본안**
+2. 다른 P2P 문서 저장소 — ①이 막힐 때만 검토
+3. libp2p 위 자체 CRDT — 유일성을 직접 구현해야 하므로 최후 수단
+
+VS-B2′의 성격도 바뀝니다. "재선정"이 아니라 **"이전 검증"** 에 가깝습니다. 규모를 L에서 M으로 내립니다.
+
+### 7.4 국내 도메인 DKIM 실태 — 🔴 신규 보안 요구사항
+
+DNS를 직접 조회해 실측했습니다.
+
+**키 길이 (2026-09-21 실측)**
+
+| 도메인 | 셀렉터 | 키 길이 |
+|-|-|-|
+| github.com | `s1` | 2048 bit |
+| yonsei.ac.kr | `google` | 2048 bit |
+| kakao.com | `default` | **1024 bit** (`t=y` 테스트 모드) |
+| snu.ac.kr | `google` | **1024 bit** |
+| **assembly.go.kr (국회)** | `default` | **1024 bit** |
+
+**키 교체는 실재하며 관측 가능하다**
+
+Gmail은 셀렉터 이름이 날짜입니다. 조회 결과 네 개 모두 **폐기 상태**였습니다.
+
+```
+20161025._domainkey.gmail.com  →  "k=rsa; p="
+20210112._domainkey.gmail.com  →  "v=DKIM1; k=rsa; p="
+20221208._domainkey.gmail.com  →  "v=DKIM1; k=rsa; p="
+20230601._domainkey.gmail.com  →  "v=DKIM1; k=rsa; p="
+```
+
+`p=`가 비어 있으면 **폐기**를 뜻합니다. 구글은 주기적으로 키를 교체하고 구 셀렉터를 폐기 상태로 남깁니다.
+
+**셀렉터는 DNS로 열거할 수 없다**
+
+`naver.com`, `daum.net`, `korea.kr`, `nate.com`은 16종의 흔한 셀렉터로 조회했으나 하나도 나오지 않았습니다. DKIM 셀렉터는 **실제 수신한 메일의 헤더에서만 알 수 있습니다.** DNS에는 열거 수단이 없습니다.
+
+#### 도출되는 요구사항
+
+**(1) 허용 도메인에 2048비트 최소 기준을 적용한다**
+
+1024비트 RSA는 충분한 자원을 가진 공격자가 인수분해할 수 있는 영역입니다. **DKIM 키 하나가 깨지면 그 도메인 사용자를 무제한 위조**할 수 있고, 이는 §신규발견의 레지스트리 탈취와 동일한 결과입니다.
+
+현재 실측 기준으로 이 기준은 **kakao.com, snu.ac.kr, assembly.go.kr을 배제**합니다. 국회 도메인이 배제되는 것은 뼈아프지만, 1024비트 키를 신뢰 기반에 넣는 것은 "수학적으로 검증한다"는 우리 주장과 양립하지 않습니다.
+
+kakao.com이 `t=y`(테스트 모드)인 점도 문제입니다. 테스트 모드 서명은 수신자가 검증 실패를 무시하도록 권고되는 상태이므로, 신원 증명의 근거로 부적절합니다.
+
+**(2) 폐기된 키를 레지스트리에서 반드시 제거한다**
+
+구글이 키를 폐기하는 것은 교체 때문이며, 교체 이유에는 유출 가능성이 포함됩니다. 폐기된 키 해시를 우리 레지스트리에 남겨두면, **그 키를 가진 자가 계속 시민을 찍어낼 수 있습니다.**
+
+즉 `revokeDKIMPublicKeyHash` 호출은 정리 작업이 아니라 **보안 운영 절차**입니다. DNS의 `p=` 비어 있음을 주기적으로 감시해 자동 대응해야 합니다.
+
+기존 시민의 자격은 영향받지 않습니다. 이미 nullifier를 소비했기 때문입니다. 영향받는 것은 신규 가입 경로뿐입니다.
+
+**(3) 레지스트리 초기 구축에 실제 메일 수신이 필요하다**
+
+셀렉터를 열거할 수 없으므로, 허용하려는 각 도메인에서 **실제로 메일을 한 통 받아 헤더를 확인해야** 합니다. 도메인 목록이 늘어날 때마다 반복되는 수작업이며, 자동화하려면 도메인별 계정과 수신 파이프라인이 필요합니다. **운영 비용으로 계획에 반영해야 합니다.**
+
+---
+
+## 8. 종합 결정
+
+| 항목 | 결정 |
+|-|-|
+| 자체 세리머니 | **하지 않는다.** 400명 세리머니를 물려받는다 (7.1) |
+| 아티팩트 | 저장소 고정 + 해시 기록 + IPFS·온체인 앵커. **런타임 다운로드 제거** (7.2) |
+| 데이터 계층 | **Ceramic One 이전이 기본안.** VS-B2′ 규모 L→M (7.3) |
+| DKIM 최소 키 길이 | **2048비트.** 미달 도메인은 허용 목록에서 제외 (7.4) |
+| 폐기 키 대응 | DNS `p=` 감시 + 자동 `revokeDKIMPublicKeyHash` (7.4) |
+| 레지스트리 구축 | 도메인별 실제 메일 수신 절차를 운영 계획에 포함 (7.4) |
+| DKIM 레지스트리 | `UserOverrideableDKIMRegistry`, 다중서명, 7일 지연 (신규발견 절) |
+
+## 9. 남은 확인 항목
+
+§6의 4건은 모두 해소되었습니다(§7). 새로 생긴 항목만 남깁니다.
 
 | 항목 | 기한 |
 |-|-|
-| Semaphore 세리머니 참여자 수·전사본 공개 위치 | VS-C1 착수 전 |
-| Semaphore 아티팩트의 현재 공식 배포처 | VS-C1 착수 전 |
-| Ceramic One이 (작성자, 대상) 유일성을 강제할 수 있는가 | VS-B2′ 안에서 |
-| 한국 주요 이메일 도메인의 DKIM 키 교체 주기 | VS-C2 착수 전 |
+| naver.com·daum.net·nate.com의 DKIM 셀렉터와 키 길이 — 실제 메일 수신 필요 | VS-C2 착수 전 |
+| 2048비트 기준 적용 시 확보 가능한 허용 도메인 범위가 충분한가 | VS-C2 착수 전 |
+| Gmail의 현재 활성 셀렉터 (조회한 4개는 모두 폐기 상태) | VS-C2 착수 전 |
+| Ceramic One의 앵커링 운영 주체와 self-anchoring 구성 절차 | VS-B2′ 안에서 |
