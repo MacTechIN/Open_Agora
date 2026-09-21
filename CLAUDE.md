@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **코드가 없습니다.** 현재는 명세만 존재하는 설계 단계입니다. 빌드/린트/테스트 명령이 아직 없으므로, 스캐폴딩을 시작할 때 이 섹션을 실제 명령으로 교체해야 합니다.
 
-* **`maindocs/` — 단일 진실 공급원.** 검증을 거쳐 확정된 명세입니다. 항상 이쪽을 따릅니다.
-* **`docs/` — 아카이브(비권위).** 초기 문서로, 서로 상충하는 내용을 담고 있습니다. 수정하지 말고 근거 추적 용도로만 참조합니다.
+* **`docs/` — 단일 진실 공급원.** 검증을 거쳐 확정된 명세입니다. 항상 이쪽을 따릅니다.
+* **`ref_docs/` — 아카이브(비권위).** 초기 문서로, 서로 상충하는 내용을 담고 있습니다. 수정하지 말고 근거 추적 용도로만 참조합니다.
 
-두 폴더가 어긋나면 언제나 `maindocs/`가 우선합니다. `maindocs/08_DECISIONS.md`에 무엇이 왜 바뀌었는지 14건의 확정 기록이 있습니다. **`docs/`를 읽고 작업하려 한다면 먼저 그 문서를 보십시오.**
+두 폴더가 어긋나면 언제나 `docs/`가 우선합니다. `docs/08_DECISIONS.md`에 무엇이 왜 바뀌었는지 14건의 확정 기록이 있습니다. **`docs/`를 읽고 작업하려 한다면 먼저 그 문서를 보십시오.**
 
 ## 프로젝트 개요
 
@@ -44,7 +44,7 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 
 ### 2. 프라이버시 불변식 (INV-1~5)
 
-`maindocs/02_IDENTITY_PRIVACY.md` §3에 전문이 있습니다. 요약하면:
+`docs/02_IDENTITY_PRIVACY.md` §3에 전문이 있습니다. 요약하면:
 
 * 정치 성향 입력값은 단말에만 암호화 저장되며 알고리즘 입력으로도 쓰지 않습니다.
 * 개인의 잠재 성향 `f_u`는 외부로 공개하지 않습니다. **오픈 API에서 `user_latent_factor`가 제거되었습니다.** 카드 단위 `f_i`만 공개합니다.
@@ -72,16 +72,17 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 
 | 문서 | 내용 |
 |-|-|
-| `maindocs/README.md` | 색인 및 읽는 순서 |
-| `maindocs/00_PRODUCT_SPEC.md` | 3열 구조, 입력·댓글·반응, 안건 등록, 블라인드 |
-| `maindocs/01_ARCHITECTURE.md` | 4계층, 온/오프체인 분리, ComposeDB·Solidity 스키마 |
-| `maindocs/02_IDENTITY_PRIVACY.md` | ZK-Email 파이프라인, 필명, 프라이버시 불변식 |
-| `maindocs/03_ALGORITHMS_AI.md` | 브리징 MF, Pol.is, 톤 코칭 3단계 |
-| `maindocs/04_REPUTATION_MODERATION.md` | 점수·배지·제재, 시민 배심, 중재 투명성 |
-| `maindocs/05_CLIENT_APPS.md` | 네이티브 앱 구조, 공유 Rust 코어, 플랫폼별 제약 |
-| `maindocs/06_GOV_BRIEF_API.md` | 대정부 브리프 양식, 연구자 오픈 API·익명화 |
-| `maindocs/07_ROADMAP.md` | 6단계 24주 로드맵 |
-| `maindocs/08_DECISIONS.md` | **확정 결정 14건의 증거와 근거. 미결 사항 6건** |
+| `docs/README.md` | 색인 및 읽는 순서 |
+| `docs/00_PRODUCT_SPEC.md` | 3열 구조, 입력·댓글·반응, 안건 등록, 블라인드 |
+| `docs/01_ARCHITECTURE.md` | 4계층, 온/오프체인 분리, ComposeDB·Solidity 스키마 |
+| `docs/02_IDENTITY_PRIVACY.md` | ZK-Email 파이프라인, 필명, 프라이버시 불변식 |
+| `docs/03_ALGORITHMS_AI.md` | 브리징 MF, Pol.is, 톤 코칭 3단계 |
+| `docs/04_REPUTATION_MODERATION.md` | 점수·배지·제재, 시민 배심, 중재 투명성 |
+| `docs/05_CLIENT_APPS.md` | 네이티브 앱 구조, 공유 Rust 코어, 플랫폼별 제약 |
+| `docs/06_GOV_BRIEF_API.md` | 대정부 브리프 양식, 연구자 오픈 API·익명화 |
+| `docs/07_ROADMAP.md` | 6단계 24주 로드맵 |
+| `docs/08_DECISIONS.md` | **확정 결정 14건의 증거와 근거. 미결 사항 6건** |
+| `docs/09_DEVELOPMENT_PLAN.md` | **개발 작업 단위.** 38개 수직 슬라이스, 의존 그래프, 불변식 게이트 |
 
 ## 목표 스택 (아직 미설치)
 
@@ -102,11 +103,11 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 
 ## 구현 전 확인이 필요한 미결 사항
 
-`maindocs/08_DECISIONS.md` 말미에 6건이 있습니다. 대표적으로 웹에서의 글 작성 허용 여부(Phase 3 전), 성향 자기 신고 수집 여부(Phase 1 전), L2 체인 선택, Windows UI 언어(C# vs C++/WinRT)입니다. 해당 영역을 건드릴 때 임의로 정하지 말고 확인하십시오.
+`docs/08_DECISIONS.md` 말미에 6건이 있습니다. 대표적으로 웹에서의 글 작성 허용 여부(Phase 3 전), 성향 자기 신고 수집 여부(Phase 1 전), L2 체인 선택, Windows UI 언어(C# vs C++/WinRT)입니다. 해당 영역을 건드릴 때 임의로 정하지 말고 확인하십시오.
 
 ## 문서 편집 시 주의
 
-`docs/` 아카이브의 마크다운은 외부 편집기 붙여넣기로 이스케이프가 깨져 있습니다(`\*`, `\#`, `&#x20;`). **아카이브는 수정하지 않습니다.** 새 문서는 `maindocs/`에 정상 마크다운으로 작성하고, 수식은 LaTeX(`$...$`, `$$...$$`)로 표기합니다.
+`docs/` 아카이브의 마크다운은 외부 편집기 붙여넣기로 이스케이프가 깨져 있습니다(`\*`, `\#`, `&#x20;`). **아카이브는 수정하지 않습니다.** 새 문서는 `docs/`에 정상 마크다운으로 작성하고, 수식은 LaTeX(`$...$`, `$$...$$`)로 표기합니다.
 
 ## 언어
 

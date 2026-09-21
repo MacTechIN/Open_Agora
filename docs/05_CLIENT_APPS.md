@@ -156,6 +156,6 @@ openAgora/
 │   └── openapi/             # 연구자 오픈 데이터 API
 ├── circuits/                # Circom ZK-Email 회로
 ├── contracts/               # Solidity + Foundry
-├── maindocs/                # 본 명세서 (단일 진실 공급원)
-└── docs/                    # 아카이브 (비권위)
+├── docs/                    # 본 명세서 (단일 진실 공급원)
+└── ref_docs/                # 아카이브 (비권위)
 ```

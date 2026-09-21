@@ -9,40 +9,40 @@
 ## D1. 신원 모델 — 실명 공개 vs 완전 익명
 
 **증거**
-* `docs/project_definition.md:3` — "실명+본인이메일로 인증 후 회원 가입"
-* `docs/project_definition.md:10` — "회원 ID는 이메일 주소로 Unique"
-* `docs/project_definition.md:13` — "등록 글은 등록자명, 아이디(이메일)이 공개되고"
-* `docs/01_SYSTEM_ARCHITECTURE.md:57` — "실제 이메일과 사용자 이름은 폐기되며"
-* `docs/01_SYSTEM_ARCHITECTURE.md:59` — "`Citizen_XXXX` 고유 식별자 발급"
+* `ref_docs/project_definition.md:3` — "실명+본인이메일로 인증 후 회원 가입"
+* `ref_docs/project_definition.md:10` — "회원 ID는 이메일 주소로 Unique"
+* `ref_docs/project_definition.md:13` — "등록 글은 등록자명, 아이디(이메일)이 공개되고"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:57` — "실제 이메일과 사용자 이름은 폐기되며"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:59` — "`Citizen_XXXX` 고유 식별자 발급"
 
 **충돌** 원본 요구는 실명과 이메일의 **공개**를, 아키텍처는 **폐기**를 규정합니다. 양립 불가능하며 신원 레이어 전체 설계를 좌우합니다.
 
 **확정** **하이브리드 — 검증된 익명.** ZK-Email로 1인 1계정만 수학적으로 검증하고, 공개되는 것은 변경 불가 필명 + 인증 배지뿐입니다. 실명·이메일은 시스템이 보관하지 않습니다.
 
-**근거** 원본 요구의 목적은 실명 노출 자체가 아니라 **책임성**이며, 변경 불가 필명에 이력이 영구 누적되면 동일하게 달성됩니다. 결정적으로 `docs/project_definition.md:12`가 "정치적 성향은 절대 노출되어서는 안 된다"를 요구하는데, 실명이 공개되면 작성 이력과 외부 정보를 결합해 성향을 추론할 수 있어 **원본 문서가 자기 자신과 모순**됩니다. 또한 `docs/project_definition.md:14`의 연구용 오픈 데이터 공개는 실명 체계에서는 개인정보 유출이 되어 실행 불가능합니다. → `02_IDENTITY_PRIVACY.md`
+**근거** 원본 요구의 목적은 실명 노출 자체가 아니라 **책임성**이며, 변경 불가 필명에 이력이 영구 누적되면 동일하게 달성됩니다. 결정적으로 `ref_docs/project_definition.md:12`가 "정치적 성향은 절대 노출되어서는 안 된다"를 요구하는데, 실명이 공개되면 작성 이력과 외부 정보를 결합해 성향을 추론할 수 있어 **원본 문서가 자기 자신과 모순**됩니다. 또한 `ref_docs/project_definition.md:14`의 연구용 오픈 데이터 공개는 실명 체계에서는 개인정보 유출이 되어 실행 불가능합니다. → `02_IDENTITY_PRIVACY.md`
 
 ---
 
 ## D2. 토론 구조 — 2분할 vs 3축
 
 **증거**
-* `docs/project_definition.md:13` — "찬성/반대의 두 가지 항목에서 글이 등록되고 좌우에 분리되어"
-* `docs/01_SYSTEM_ARCHITECTURE.md:79` — `stance: StanceType! # ENDORSE | CONCERN | ALTERNATIVE`
+* `ref_docs/project_definition.md:13` — "찬성/반대의 두 가지 항목에서 글이 등록되고 좌우에 분리되어"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:79` — `stance: StanceType! # ENDORSE | CONCERN | ALTERNATIVE`
 
 **충돌** 원본은 좌우 2분할, 스키마는 3개 스탠스입니다.
 
 **확정** **3열 — 찬성(SUPPORT) | 대안·합의(ALTERNATIVE) | 반대(OPPOSE).** 좌우 두 열은 시각적으로 완전히 동등하고, 가운데 열은 브리징 알고리즘의 산출물입니다.
 
-**근거** 두 요구가 실제로는 충돌이 아니었습니다. 원본이 요구한 "좌우 동등 분리"는 좌우 두 열로 그대로 충족되고, `ALTERNATIVE`는 좌우 어디에도 속하지 않는 제3안이므로 가운데 열이 제 자리입니다. 그리고 이 가운데 열은 `docs/algorithms_ai_pipeline_specification.md:47`의 "Common Ground" 다이어그램이 이미 그리고 있던 공간과 정확히 일치합니다. 스탠스 이름은 원본의 찬반 어휘에 맞춰 `ENDORSE`→`SUPPORT`, `CONCERN`→`OPPOSE`로 변경했습니다. → `00_PRODUCT_SPEC.md` §2
+**근거** 두 요구가 실제로는 충돌이 아니었습니다. 원본이 요구한 "좌우 동등 분리"는 좌우 두 열로 그대로 충족되고, `ALTERNATIVE`는 좌우 어디에도 속하지 않는 제3안이므로 가운데 열이 제 자리입니다. 그리고 이 가운데 열은 `ref_docs/algorithms_ai_pipeline_specification.md:47`의 "Common Ground" 다이어그램이 이미 그리고 있던 공간과 정확히 일치합니다. 스탠스 이름은 원본의 찬반 어휘에 맞춰 `ENDORSE`→`SUPPORT`, `CONCERN`→`OPPOSE`로 변경했습니다. → `00_PRODUCT_SPEC.md` §2
 
 ---
 
 ## D3. 삭제 정책 — 삭제 가능 vs 영구 보존 vs 불변성
 
 **증거**
-* `docs/project_definition.md:10` — "AI에 의해 욕설비방음란적이나 사회적으로 문제가 되지 않는 이상 지워지지 않고 영원히 검색이 가능"
-* `docs/project_definition.md:2` — "누구도 데이터를 왜곡하거나 지울 수 없고"
-* `docs/03_SERVICE_SPEC_AND_API.md` §2 — 순화 거부 시 "상단 노출 디랭킹"
+* `ref_docs/project_definition.md:10` — "AI에 의해 욕설비방음란적이나 사회적으로 문제가 되지 않는 이상 지워지지 않고 영원히 검색이 가능"
+* `ref_docs/project_definition.md:2` — "누구도 데이터를 왜곡하거나 지울 수 없고"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md` §2 — 순화 거부 시 "상단 노출 디랭킹"
 
 **충돌** 3자 충돌입니다. AI가 문제 글을 삭제할 수 있어야 하고, 동시에 영원히 보존되어야 하며, 동시에 누구도 지울 수 없어야 합니다.
 
@@ -55,10 +55,10 @@
 ## D4. 반응 아이콘 세트
 
 **증거**
-* `docs/project_definition.md:13` — "좋아요, 반대해요, 별로에요, 추천해요"
-* `docs/03_SERVICE_SPEC_AND_API.md:20` — "논리적이에요(💡) 또는 공감해요(🤝)"
-* `docs/01_SYSTEM_ARCHITECTURE.md:26` — "상호 반응(💡, 🤝, 🔍, ⚖️)"
-* `docs/03_SERVICE_SPEC_AND_API.md` §4 — API 필드 `logical` / `empathy` / `needs_factcheck` / `suggests_alternative`
+* `ref_docs/project_definition.md:13` — "좋아요, 반대해요, 별로에요, 추천해요"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md:20` — "논리적이에요(💡) 또는 공감해요(🤝)"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:26` — "상호 반응(💡, 🤝, 🔍, ⚖️)"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md` §4 — API 필드 `logical` / `empathy` / `needs_factcheck` / `suggests_alternative`
 
 **충돌** 세 가지 다른 세트가 존재합니다.
 
@@ -71,9 +71,9 @@
 ## D5. 합의 임계치 — 0.65 vs 0.60
 
 **증거**
-* `docs/01_SYSTEM_ARCHITECTURE.md:227` — `Agreement(A) ≥ 0.65 ∧ Agreement(B) ≥ 0.65`
-* `docs/algorithms_ai_pipeline_specification.md:54` — `Consensus(i) ≥ 0.60`
-* `docs/03_SERVICE_SPEC_AND_API.md` §3 — 브리프 예시 "지지도 84.1%, 양 진영 지지율 격차 3.2% 이내"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:227` — `Agreement(A) ≥ 0.65 ∧ Agreement(B) ≥ 0.65`
+* `ref_docs/algorithms_ai_pipeline_specification.md:54` — `Consensus(i) ≥ 0.60`
+* `ref_docs/03_SERVICE_SPEC_AND_API.md` §3 — 브리프 예시 "지지도 84.1%, 양 진영 지지율 격차 3.2% 이내"
 
 **충돌** 같은 판정에 대해 0.65와 0.60이 병존합니다.
 
@@ -88,8 +88,8 @@
 ## D6. 톤 코칭 파이프라인 — 모델 순서와 임계치
 
 **증거**
-* `docs/01_SYSTEM_ARCHITECTURE.md:247-251` — Step 1이 Kor-Unsmile, 임계치 0.3
-* `docs/algorithms_ai_pipeline_specification.md:70-78` — Step 1이 KcELECTRA, Step 2가 KorUnsmile, 임계치 0.65
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:247-251` — Step 1이 Kor-Unsmile, 임계치 0.3
+* `ref_docs/algorithms_ai_pipeline_specification.md:70-78` — Step 1이 KcELECTRA, Step 2가 KorUnsmile, 임계치 0.65
 
 **충돌** 1차 모델이 무엇인지, 임계치가 얼마인지 모두 다릅니다.
 
@@ -104,9 +104,9 @@
 ## D7. 프라이버시 — 성향 비노출 vs 성향 기반 기능
 
 **증거**
-* `docs/project_definition.md:12` — "정치적 성향, 정당명 … 절대 노출이 되어서는 안 된다"
-* `docs/03_SERVICE_SPEC_AND_API.md:20` — "반대 진영 사용자로부터 … 획득 시 +5점 / 건"
-* `docs/03_SERVICE_SPEC_AND_API.md` §4 — API 응답 필드 `"user_latent_factor": -0.12`
+* `ref_docs/project_definition.md:12` — "정치적 성향, 정당명 … 절대 노출이 되어서는 안 된다"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md:20` — "반대 진영 사용자로부터 … 획득 시 +5점 / 건"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md` §4 — API 응답 필드 `"user_latent_factor": -0.12`
 
 **충돌** 성향을 절대 노출하지 말라면서, 성향에 기반한 즉시 가점과 개인 단위 성향값 공개 API를 동시에 규정합니다.
 
@@ -122,8 +122,8 @@
 ## D8. 근거 URL — 선택 vs 필수
 
 **증거**
-* `docs/01_SYSTEM_ARCHITECTURE.md:85` — `evidenceUrl: String @string(maxLength: 500)` (선택)
-* `docs/03_SERVICE_SPEC_AND_API.md:11` — "통계청, 정부 고시, 학술 논문 등 URL 링크 1개 필수"
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:85` — `evidenceUrl: String @string(maxLength: 500)` (선택)
+* `ref_docs/03_SERVICE_SPEC_AND_API.md:11` — "통계청, 정부 고시, 학술 논문 등 URL 링크 1개 필수"
 
 **충돌** 스키마는 선택, UI 스펙은 필수입니다.
 
@@ -136,8 +136,8 @@
 ## D9. 용어 — "3축"의 중의성
 
 **증거**
-* `docs/01_SYSTEM_ARCHITECTURE.md:75` — "3축 토론 카드" (스탠스 3종을 지칭)
-* `docs/03_SERVICE_SPEC_AND_API.md:3` — "3축 구조화 500자 입력 UI" (입력 필드 3개를 지칭)
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:75` — "3축 토론 카드" (스탠스 3종을 지칭)
+* `ref_docs/03_SERVICE_SPEC_AND_API.md:3` — "3축 구조화 500자 입력 UI" (입력 필드 3개를 지칭)
 
 **충돌** 같은 단어가 전혀 다른 두 개념을 가리킵니다.
 
@@ -150,10 +150,10 @@
 ## D10. 문서 구조 — 누락과 중복
 
 **증거**
-* `docs/index.md:10` — `docs/02_ALGORITHM_AND_AI.md` 참조
-* 실제 파일 없음. 해당 내용이 `docs/01_SYSTEM_ARCHITECTURE.md:195` 이후에 코드펜스 밖으로 유출된 채 이어붙어 있고, `docs/algorithms_ai_pipeline_specification.md`에 수치가 다른 확장본으로 중복 존재
+* `ref_docs/index.md:10` — `ref_docs/02_ALGORITHM_AND_AI.md` 참조
+* 실제 파일 없음. 해당 내용이 `ref_docs/01_SYSTEM_ARCHITECTURE.md:195` 이후에 코드펜스 밖으로 유출된 채 이어붙어 있고, `ref_docs/algorithms_ai_pipeline_specification.md`에 수치가 다른 확장본으로 중복 존재
 
-**확정** `maindocs/03_ALGORITHMS_AI.md`로 단일화하고, 기존 `docs/`는 아카이브(비권위)로 강등합니다.
+**확정** `docs/03_ALGORITHMS_AI.md`로 단일화하고, 기존 `docs/`는 아카이브(비권위)로 강등합니다.
 
 **근거** 동일 주제의 문서가 서로 다른 수치로 두 벌 존재하는 것이 D5·D6 충돌의 직접적 원인이었습니다.
 
@@ -161,7 +161,7 @@
 
 ## D11. 댓글 레이어 — 명세 누락
 
-**증거** `docs/project_definition.md:8,13` — "의견 아래는 지지하거나 반박하는 글을 500자로", "각각 댓글이 등록되는 것이 보이도록(댓글 몇 개)". 스펙 문서 3종에 댓글에 대한 언급이 전혀 없습니다.
+**증거** `ref_docs/project_definition.md:8,13` — "의견 아래는 지지하거나 반박하는 글을 500자로", "각각 댓글이 등록되는 것이 보이도록(댓글 몇 개)". 스펙 문서 3종에 댓글에 대한 언급이 전혀 없습니다.
 
 **확정** `Reply` 모델을 신설합니다. 자유 서술 500자, **1단계 깊이만 허용**, 톤 코칭 적용, **반응 불가**, 작성 가점 없음.
 
@@ -171,7 +171,7 @@
 
 ## D12. 안건 등록 포맷 — 명세 누락
 
-**증거** `docs/project_definition.md:11` — "정책의 등록도 회원들이 특정 포맷에 의해 등록해야 하고". 그 포맷이 어디에도 정의되지 않았습니다.
+**증거** `ref_docs/project_definition.md:11` — "정책의 등록도 회원들이 특정 포맷에 의해 등록해야 하고". 그 포맷이 어디에도 정의되지 않았습니다.
 
 **확정** 7개 필드(제목 60자 / 분류 / 배경 300자 / 쟁점 질문 100자 / 공식 출처 URL / 소관 기관 / 토론 기한)를 정의하고, 임베딩 유사도 기반 중복 안건 방지와 등록 자격 50점 기준을 추가합니다.
 
@@ -182,8 +182,8 @@
 ## D13. 평판의 온체인 표현 — SBT vs 가변 점수
 
 **증거**
-* `docs/01_SYSTEM_ARCHITECTURE.md:37` — "사용자 브리징 평판 토큰 (Soulbound Token)"
-* `docs/03_SERVICE_SPEC_AND_API.md` §2 — 점수가 수시로 가감되는 체계
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md:37` — "사용자 브리징 평판 토큰 (Soulbound Token)"
+* `ref_docs/03_SERVICE_SPEC_AND_API.md` §2 — 점수가 수시로 가감되는 체계
 
 **충돌** 매일 변하는 점수를 온체인 토큰으로 표현하는 방식이 정의되지 않았습니다.
 
