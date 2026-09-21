@@ -7,7 +7,7 @@ namespace CivicAgora.Windows;
 /// 기기 신원 (VS-A2).
 ///
 /// 개인키는 CNG 키 저장소에 **영구 키**로 생성되고 밖으로 내보내지 않습니다
-/// (<see cref="CngExportPolicy.NoExport"/>). 서명은 CNG가 수행하며 앱은
+/// (<see cref="CngExportPolicies.None"/>). 서명은 CNG가 수행하며 앱은
 /// 핸들만 쥡니다. 공유 코어에도 개인키를 넘기지 않으므로 코어가 유출할
 /// 경로 자체가 없습니다.
 ///
@@ -50,7 +50,7 @@ public static class DeviceIdentity
             q.X!.CopyTo(sec1, 1);
             q.Y!.CopyTo(sec1, 33);
 
-            return new Identity(Core.CivicagoraMethods.DidFromPublicKey(sec1), protection);
+            return new Identity(global::CivicAgora.Core.CivicagoraMethods.DidFromPublicKey(sec1), protection);
         }
     }
 
@@ -91,7 +91,8 @@ public static class DeviceIdentity
                     Provider = provider,
                     KeyCreationOptions = CngKeyCreationOptions.None,
                     // 키를 내보낼 수 없게 한다. 이것이 메모리 노출을 막는 핵심이다.
-                    ExportPolicy = CngExportPolicy.NoExport,
+                    // 타입명은 복수형 CngExportPolicies다.
+                    ExportPolicy = CngExportPolicies.None,
                     KeyUsage = CngKeyUsages.Signing,
                 };
                 return (CngKey.Create(CngAlgorithm.ECDsaP256, KeyName, parameters), protection);

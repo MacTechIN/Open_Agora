@@ -16,15 +16,15 @@ namespace civicagora {
 
     // P-256 공개키(SEC1, 압축/비압축 모두 허용)로 did:key를 만든다.
     [Throws=IdentityError]
-    string did_from_public_key(sequence<u8> public_key);
+    string did_from_public_key(bytes public_key);
 
     // did:key에서 압축 공개키를 복원한다.
     [Throws=IdentityError]
-    sequence<u8> public_key_from_did(string did);
+    bytes public_key_from_did(string did);
 
     // 서명을 검증한다. 서명은 P1363 형식(r||s, 64바이트).
     [Throws=IdentityError]
-    boolean verify_signature(string did, sequence<u8> message, sequence<u8> signature);
+    boolean verify_signature(string did, bytes message, bytes signature);
 };
 
 [Error]
