@@ -1,0 +1,7 @@
+{
+  "comment": "Windows App SDK 1.6은 .NET 8 SDK의 MSBuild 태스크 경로를 전제한다. 러너 기본값인 SDK 10에서는 MrtCore PRI 생성 태스크를 찾지 못해 MSB4062로 깨진다.",
+  "sdk": {
+    "version": "8.0.0",
+    "rollForward": "latestFeature"
+  }
+}

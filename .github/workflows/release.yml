@@ -28,7 +28,7 @@ jobs:
         with:
           targets: aarch64-linux-android,x86_64-linux-android
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -63,6 +63,12 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
+
+      # global.json이 SDK 8을 고정한다. 러너 기본 SDK(10)에서는 Windows App SDK
+      # 1.6이 쓰는 MrtCore PRI 태스크를 찾지 못한다.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
       - name: C# 바인드젠 캐시
         id: cache-bindgen
