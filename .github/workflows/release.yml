@@ -70,6 +70,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Windows App SDK의 리소스(PRI) 생성 태스크는 .NET SDK가 아니라
+      # Visual Studio에 들어 있다. dotnet publish로는 찾지 못하므로
+      # VS의 MSBuild를 쓴다.
+      - uses: microsoft/setup-msbuild@v2
+
       - name: C# 바인드젠 캐시
         id: cache-bindgen
         uses: actions/cache@v4
@@ -94,8 +99,12 @@ jobs:
 
       - name: 앱 발행 (unpackaged self-contained)
         run: |
-          dotnet publish apps/windows/CivicAgora.Windows.csproj `
-            -c Release -r win-x64 -o dist/windows
+          msbuild apps/windows/CivicAgora.Windows.csproj `
+            /t:Restore`;Publish `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:RuntimeIdentifier=win-x64 `
+            /p:PublishDir=${{ github.workspace }}\dist\windows\
 
       - name: 압축
         run: Compress-Archive -Path dist/windows/* -DestinationPath CivicAgora-windows-x64.zip

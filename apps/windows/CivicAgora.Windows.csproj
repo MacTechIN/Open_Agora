@@ -19,6 +19,9 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- WinUI 3는 AnyCPU를 지원하지 않는다. 명시하지 않으면 MSBuild가
+         플랫폼을 잘못 잡아 리소스 생성 단계에서 깨진다. -->
+    <Platforms>x64</Platforms>
     <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
