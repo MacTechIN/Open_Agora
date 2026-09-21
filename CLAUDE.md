@@ -4,76 +4,110 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 저장소 현재 상태
 
-**코드가 없습니다.** 이 저장소는 현재 `docs/` 아래 명세 문서만 존재하는 설계 단계 프로젝트이며, git 저장소도 아직 아닙니다. 빌드/린트/테스트 명령이 존재하지 않으므로, 구현을 시작할 때 스캐폴딩과 함께 이 섹션을 실제 명령으로 교체해야 합니다.
+**코드가 없습니다.** 현재는 명세만 존재하는 설계 단계입니다. 빌드/린트/테스트 명령이 아직 없으므로, 스캐폴딩을 시작할 때 이 섹션을 실제 명령으로 교체해야 합니다.
 
-문서에서 선언된(아직 설치되지 않은) 목표 스택:
+* **`maindocs/` — 단일 진실 공급원.** 검증을 거쳐 확정된 명세입니다. 항상 이쪽을 따릅니다.
+* **`docs/` — 아카이브(비권위).** 초기 문서로, 서로 상충하는 내용을 담고 있습니다. 수정하지 말고 근거 추적 용도로만 참조합니다.
 
-| 레이어 | 스택 |
-|-|-|
-| 프론트엔드 | Next.js 15 (App Router) + Tailwind CSS |
-| AI 서빙 | Python FastAPI + vLLM |
-| 영지식 증명 | Circom 회로 + SnarkJS (브라우저 Wasm) |
-| P2P 데이터 | Ceramic ComposeDB, Helia IPFS, js-libp2p (GossipSub) |
-| 온체인 | Solidity ^0.8.24, EVM L2 (Arbitrum/Polygon) |
-| 오픈 데이터 | DuckDB / Parquet + REST |
+두 폴더가 어긋나면 언제나 `maindocs/`가 우선합니다. `maindocs/08_DECISIONS.md`에 무엇이 왜 바뀌었는지 14건의 확정 기록이 있습니다. **`docs/`를 읽고 작업하려 한다면 먼저 그 문서를 보십시오.**
 
 ## 프로젝트 개요
 
-CivicAgora는 탈중앙 정책 공론장이다. 세 가지 축이 서로를 제약한다:
+CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자격으로 정책을 검증하는 탈중앙 공론장입니다. 세 원칙이 서로를 제약하며, 기능 추가 시 어느 하나를 희생시키지 않는지 검토해야 합니다.
 
-1. **무신뢰 불변성** — 중앙 서버가 데이터를 검열·삭제·왜곡할 수 없어야 한다. 본문은 오프체인 P2P(Ceramic/IPFS)에, 상태 증명(머클 루트)만 온체인에 앵커링한다.
-2. **진영 논리 차단** — 단순 다수결이 아니라 *브리징*으로 순위를 매긴다. 상반된 이념 성향 집단 양쪽 모두에게 긍정 평가를 받은 글만 상위 노출된다. 몰표·좌표찍기는 구조적으로 무력화된다.
-3. **처벌이 아닌 유도** — AI 톤 코칭은 차단기가 아니라 작성 단계의 코치다. 사용자는 항상 원문 강행 게시를 선택할 수 있고, 대신 평판 점수 차감과 디랭킹을 감수한다.
+1. **무신뢰 불변성** — 중앙 서버가 검열·삭제·왜곡할 수 없습니다. 본문은 P2P에, 증명만 온체인에.
+2. **진영 논리 차단** — 다수결이 아닌 *브리징*으로 순위를 매깁니다. 상반된 이념 집단 양쪽 모두에게 긍정 평가를 받은 글만 상위 노출됩니다.
+3. **처벌이 아닌 유도** — AI는 차단기가 아니라 코치입니다. 사용자는 언제나 원문 게시를 택할 수 있고 대신 평판 차감과 디랭킹을 감수합니다.
 
-## 아키텍처 (3계층)
+## 아키텍처 (4계층)
 
 ```
-[브라우저 / 로컬 노드]  로컬 키페어(Secp256k1 DID) · ZK 증명 생성(SnarkJS/Wasm) · Helia+libp2p
-        │
-[P2P 데이터 계층]       ComposeDB on Ceramic — 정책 본문, 토론 카드, 반응 이벤트 로그
-        │               GossipSub 피어 동기화 (mDNS + STUN/TURN)
-        │  주기적 Merkle State Root 앵커링
-[EVM L2 컨트랙트]       Nullifier 레지스트리(1인 1계정) · 안건별 상태 머클 루트 · 평판 SBT
+계층 1  네이티브 클라이언트   Windows(WinUI 3, C#) · Android(Compose, Kotlin)
+                             └ 공유 Rust 코어 civicagora-core
+                               키/DID · ZK 증명(rapidsnark) · rust-libp2p · 온디바이스 톤 스크리닝
+계층 2  P2P 데이터           Ceramic ComposeDB · IPFS · libp2p GossipSub
+계층 3  연산 서비스          AI 톤 코칭(FastAPI+vLLM) · 브리징/Pol.is 배치 · 브리프·오픈 API
+계층 4  온체인 (EVM L2)      Nullifier 레지스트리 · 상태 머클 루트 · 평판 SBT
 ```
 
-핵심 데이터 분리 원칙: **읽을 수 있는 모든 것은 오프체인, 증명할 수 있는 것만 온체인.** 온체인에는 이메일·실명·본문이 절대 올라가지 않는다 (`CivicAgoraCore` 컨트랙트 스케치는 `docs/01_SYSTEM_ARCHITECTURE.md` 참조).
+**데이터 분리 원칙: 읽을 수 있는 모든 것은 오프체인, 증명할 수 있는 것만 온체인.** 실명·이메일은 시스템 어디에도 저장되지 않습니다.
 
-신원 파이프라인: 인증 메일의 DKIM RSA 서명을 클라이언트 내 Circom 회로로 검증 → `Nullifier Hash = Poseidon(Email, AppSalt)` 산출 → 이메일 원문·실명 폐기 → Nullifier + ZK Proof만 컨트랙트 전송 → 중복 대조 후 `Citizen_XXXX` 식별자 발급.
+**계층 3이 중앙 통제가 되지 않는 장치**: 데이터를 소유하지 않고, 모든 배치 잡이 결정론적이며(스냅샷 해시·모델 버전·시드 기록), 제3자가 재계산해 조작을 증명할 수 있고, 톤 코칭 결과에 구속력이 없습니다. 이 성질을 깨는 변경은 플랫폼의 전제를 무너뜨립니다.
 
-## 알고리즘 계약
+## 절대 깨뜨리면 안 되는 두 가지
 
-**브리징 행렬 분해** (Community Notes 변형): `r̂(u,i) = μ + b_u + b_i + f_u · f_i`, L2 정규화 손실 최소화. `b_i`(고유 품질/브리징 점수)가 랭킹 기준이고, `f_i`(이념 편향 벡터)가 0에 가까울 때만 `b_i`가 커진다. **같은 진영의 몰표는 `f_u · f_i` 항이 흡수하므로 `b_i`를 올리지 못한다** — 이 성질이 깨지면 플랫폼의 존재 이유가 사라지므로, 랭킹 코드 변경 시 최우선 회귀 검증 대상이다.
+### 1. 브리징 불변식
 
-**Pol.is 합의 추출**: 유저×의견 희소 행렬 → PCA 2차원 투영 → K-Means 군집화 → 모든 군집에서 임계치 이상 찬성률을 얻은 '대안' 카드만 공식 권고안 후보로 승격.
+`r̂(u,i) = μ + b_u + b_i + f_u · f_i`에서 **같은 진영의 몰표는 `f_u · f_i` 항이 흡수하므로 `b_i`를 올리지 못합니다.** 반대 성향 집단까지 긍정 평가해야만 `b_i`가 상승합니다. 이것이 플랫폼의 존재 이유이므로, 랭킹 관련 코드를 변경하면 **합성 몰표 데이터로 `b_i`가 상승하지 않음을 검증하는 회귀 테스트**가 필수입니다.
 
-**AI 톤 코칭 3단계**: 고속 유해성 스크리닝(<30ms) → 멀티라벨 정밀 분류 → 경량 LLM 순화문 생성. 순화 제안은 **작성자의 비판 취지를 100% 보존**해야 하며, 출력은 `toxicity_score` / `detected_violations` / `suggested_revision` JSON이다. 모델 후보: `smilegate-ai/kor_unsmile`, `beomi/KcELECTRA-base-v2022`, `yanolja/EEVE-Korean-Instruct-10.8B`.
+평판 설계도 같은 목적을 공유합니다. 교차 진영 가점(+5)이 동일 진영 가점(+1)의 5배인 것은 의도된 것이며, 이 비율 변경은 제품 성격을 바꿉니다.
 
-**평판 점수**: 제안 작성 +10, 반대 진영으로부터 긍정 반응 +5/건, 대정부 브리프 수록 +100, 순화 거부 강행 -30, 악의적 비방 댓글 -50 및 7일 작성 정지.
+### 2. 프라이버시 불변식 (INV-1~5)
+
+`maindocs/02_IDENTITY_PRIVACY.md` §3에 전문이 있습니다. 요약하면:
+
+* 정치 성향 입력값은 단말에만 암호화 저장되며 알고리즘 입력으로도 쓰지 않습니다.
+* 개인의 잠재 성향 `f_u`는 외부로 공개하지 않습니다. **오픈 API에서 `user_latent_factor`가 제거되었습니다.** 카드 단위 `f_i`만 공개합니다.
+* 누가 어떤 반응을 눌렀는지 공개하지 않습니다.
+* 교차 진영 가점은 **일 1회 배치 정산**합니다. 건별 즉시 반영하면 점수 변동으로 반응자의 진영을 역추론할 수 있습니다.
+* 집계 공개에 최소 인원 기준을 적용합니다(군집 20명, 안건 50명).
+
+## 핵심 규격 요약
+
+상세는 각 문서에 있습니다. 구현 시 수치를 문서에서 직접 확인하십시오.
+
+| 항목 | 값 |
+|-|-|
+| 토론 구조 | 3열 — 찬성(SUPPORT) / 대안·합의(ALTERNATIVE) / 반대(OPPOSE) |
+| 카드 입력 | 3단 구조화, 150+200+150 = 500자, 근거 URL 필수 |
+| 댓글 | 자유 서술 500자, 1단계 깊이만, 반응 불가 |
+| 반응 | 💡🤝 (`r=1`) / 🔍⚖️ (`r=0`) |
+| 합의 배너 승격 | 모든 군집 찬성률 ≥ 0.60 |
+| 대정부 브리프 수록 | 모든 군집 ≥ 0.65 **이며** 군집 간 격차 ≤ 5%p |
+| 톤 코칭 | KcELECTRA(0.30 게이트) → kor_unsmile(0.65 배너) → EEVE(순화문) |
+| 삭제 | **없음.** 디랭킹 → 블라인드 → 검색 제외 3단계만 |
+| 신원 | ZK-Email 검증 + 변경 불가 필명. 실명·이메일 미보관 |
 
 ## 문서 지도
 
-- `docs/index.md` — 문서 색인 및 4단계(16주) 로드맵. Phase 1 신원/데이터 → Phase 2 합의/톤코칭 → Phase 3 프론트/P2P → Phase 4 대정부 파이프라인/오픈 API.
-- `docs/project_definition.md` — **원본 요구사항.** 이해관계자가 직접 쓴 평문이며, 아래 충돌 목록에서 다른 문서와 어긋날 때 무엇이 원래 의도였는지 판단하는 기준.
-- `docs/01_SYSTEM_ARCHITECTURE.md` — 토폴로지, ZK-Email 파이프라인, ComposeDB GraphQL 스키마, Solidity 스케치. 파일 하단에 `02_ALGORITHM_AND_AI.md`가 될 내용이 코드펜스 밖으로 새어나와 그대로 이어붙어 있다.
-- `docs/algorithms_ai_pipeline_specification.md` — 알고리즘 상세 (01 하단 내용의 확장판, 수치는 불일치).
-- `docs/03_SERVICE_SPEC_AND_API.md` — 3축 입력 UI 스펙, 평판/배지 정책, 대정부 브리프 포맷, 연구자용 오픈 API (`GET /api/v1/research/opinions/export`).
-- `docs/research.md` — 기술 선정 근거 및 참조 오픈소스 (zkemail, spruceid/ssi, twitter/communitynotes, pol-is, ceramic, helia, libp2p).
+| 문서 | 내용 |
+|-|-|
+| `maindocs/README.md` | 색인 및 읽는 순서 |
+| `maindocs/00_PRODUCT_SPEC.md` | 3열 구조, 입력·댓글·반응, 안건 등록, 블라인드 |
+| `maindocs/01_ARCHITECTURE.md` | 4계층, 온/오프체인 분리, ComposeDB·Solidity 스키마 |
+| `maindocs/02_IDENTITY_PRIVACY.md` | ZK-Email 파이프라인, 필명, 프라이버시 불변식 |
+| `maindocs/03_ALGORITHMS_AI.md` | 브리징 MF, Pol.is, 톤 코칭 3단계 |
+| `maindocs/04_REPUTATION_MODERATION.md` | 점수·배지·제재, 시민 배심, 중재 투명성 |
+| `maindocs/05_CLIENT_APPS.md` | 네이티브 앱 구조, 공유 Rust 코어, 플랫폼별 제약 |
+| `maindocs/06_GOV_BRIEF_API.md` | 대정부 브리프 양식, 연구자 오픈 API·익명화 |
+| `maindocs/07_ROADMAP.md` | 6단계 24주 로드맵 |
+| `maindocs/08_DECISIONS.md` | **확정 결정 14건의 증거와 근거. 미결 사항 6건** |
 
-## 구현 전에 반드시 해소해야 할 명세 충돌
+## 목표 스택 (아직 미설치)
 
-문서들이 서로 다른 시점에 작성되어 상충한다. 해당 영역을 구현할 때는 임의로 한쪽을 고르지 말고 사용자에게 확인할 것.
+| 영역 | 스택 |
+|-|-|
+| Windows 앱 | WinUI 3 / Windows App SDK, C# .NET 8, MSIX |
+| Android 앱 | Jetpack Compose, Kotlin, AAB + APK 직배포 |
+| 공유 코어 | Rust — rust-libp2p, rapidsnark, SQLite, ONNX Runtime, `uniffi-rs` 바인딩 |
+| P2P | Ceramic ComposeDB, IPFS, libp2p (QUIC/TCP, AutoNAT, DCUtR) |
+| AI 서빙 | Python FastAPI + vLLM |
+| ZK | Circom 회로 |
+| 온체인 | Solidity ^0.8.24, EVM L2, Foundry |
+| 웹(읽기 전용) | Next.js 15 App Router + Tailwind |
 
-1. **익명성 vs 실명 공개 (가장 중요).** `project_definition.md`는 "회원 ID는 이메일 주소로 unique", "등록자명과 아이디(이메일)이 공개"를 요구한다. 반면 `01_SYSTEM_ARCHITECTURE.md`의 ZK-Email 설계는 이메일과 실명을 **폐기**하고 `Citizen_XXXX` 가명만 남긴다. 두 요구는 양립 불가능하며, 신원 레이어 전체 설계를 좌우한다.
-2. **찬반 2축 vs 3축 스탠스.** 원본 요구는 찬성/반대 좌우 2분할 목록이다. 스키마와 UI 스펙은 `ENDORSE | CONCERN | ALTERNATIVE` 3축 구조화 카드(150/200/150자)다.
-3. **반응 아이콘 세트.** 원본은 카카오톡식 좋아요/반대해요/별로에요/추천해요. 명세는 💡논리적 / 🤝공감 / 🔍팩트체크 / ⚖️대안. 오픈 API 응답 필드는 후자(`logical`, `empathy`, `needs_factcheck`, `suggests_alternative`) 기준.
-4. **합의 임계치.** 01 하단은 양 군집 모두 **0.65** 이상, `algorithms_ai_pipeline_specification.md`는 **0.60** 이상.
-5. **톤 코칭 파이프라인 순서와 임계치.** 01 하단: Kor-Unsmile 1차 스캔, score ≥ **0.3**이면 LLM 단계 진입. algorithms 문서: KcELECTRA 1차 → KorUnsmile 정밀 분류, score > **0.65**에서 배너 트리거. 모델 순서와 숫자 모두 다르다.
-6. **누락 문서.** `index.md`가 참조하는 `docs/02_ALGORITHM_AND_AI.md`는 존재하지 않는다.
+웹뷰 래퍼(Electron·Tauri)는 네이티브 요구에 부합하지 않아 제외되었습니다.
+
+**바인딩은 손으로 쓰지 마십시오.** 코어 인터페이스는 `civicagora.udl`에 한 번만 정의하고 `uniffi-rs`로 Kotlin·C# 바인딩을 생성합니다. 수작업 FFI 래퍼는 두 플랫폼이 어긋나는 가장 흔한 원인입니다.
+
+## 구현 전 확인이 필요한 미결 사항
+
+`maindocs/08_DECISIONS.md` 말미에 6건이 있습니다. 대표적으로 웹에서의 글 작성 허용 여부(Phase 3 전), 성향 자기 신고 수집 여부(Phase 1 전), L2 체인 선택, Windows UI 언어(C# vs C++/WinRT)입니다. 해당 영역을 건드릴 때 임의로 정하지 말고 확인하십시오.
 
 ## 문서 편집 시 주의
 
-`docs/` 내 마크다운 상당수가 외부 편집기에서 붙여넣어지며 이스케이프가 깨져 있다 (`\*`, `\#`, `\\[`, `&#x20;`, `$$...$$` 내부의 `\\`). 문서를 수정할 때 이 손상을 그대로 확산시키지 말고, 손대는 구역은 정상 마크다운으로 복구할 것. 수식은 LaTeX(`$...$`, `$$...$$`)로 표기한다.
+`docs/` 아카이브의 마크다운은 외부 편집기 붙여넣기로 이스케이프가 깨져 있습니다(`\*`, `\#`, `&#x20;`). **아카이브는 수정하지 않습니다.** 새 문서는 `maindocs/`에 정상 마크다운으로 작성하고, 수식은 LaTeX(`$...$`, `$$...$$`)로 표기합니다.
 
 ## 언어
 
-모든 문서와 제품 UI는 한국어다. AI 모델 선정도 한국어 정치 커뮤니티의 신조어·은어·초성 비하 탐지를 전제로 한다. 사용자 대면 문자열, 커밋 메시지, 문서는 한국어로 작성한다.
+모든 문서와 제품 UI는 한국어입니다. AI 모델 선정도 한국어 정치 커뮤니티의 신조어·은어·초성 비하 탐지를 전제로 합니다. 사용자 대면 문자열, 커밋 메시지, 문서는 한국어로 작성합니다.
