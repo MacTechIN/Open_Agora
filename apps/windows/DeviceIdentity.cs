@@ -89,9 +89,35 @@ public static class DeviceIdentity
         // 키가 만들어져 재실행마다 DID가 바뀐다. 제공자를 명시해야 한다.
         foreach (var provider in Providers)
         {
-            if (CngKey.Exists(KeyName, provider))
+            // 조회 결과를 남긴다. 어느 제공자에 키가 있는지가 보호 수준을
+            // 결정하므로, 기대와 다를 때 원인을 알려면 이 기록이 필요하다.
+            bool exists;
+            try
             {
-                return (CngKey.Open(KeyName, provider), ProtectionOf(provider));
+                exists = CngKey.Exists(KeyName, provider);
+                StartupLog.Write("키 조회", $"{provider.Provider} → {(exists ? "있음" : "없음")}");
+            }
+            catch (Exception ex)
+            {
+                // 제공자를 쓸 수 없으면 예외가 난다. 이 경우도 기록하고 넘어간다.
+                StartupLog.Write("키 조회 실패", $"{provider.Provider}: {ex.GetType().Name} {ex.Message}");
+                continue;
+            }
+
+            if (exists)
+            {
+                try
+                {
+                    var key = CngKey.Open(KeyName, provider);
+                    StartupLog.Write("키 열기 성공", provider.Provider);
+                    return (key, ProtectionOf(provider));
+                }
+                catch (Exception ex)
+                {
+                    // 존재하지만 열 수 없는 경우가 있다(권한, TPM 상태 등).
+                    // 삼키지 말고 남긴 뒤 다음 제공자를 본다.
+                    StartupLog.Write("키 열기 실패", $"{provider.Provider}: {ex.GetType().Name} {ex.Message}");
+                }
             }
         }
 
@@ -110,12 +136,15 @@ public static class DeviceIdentity
                     ExportPolicy = CngExportPolicies.None,
                     KeyUsage = CngKeyUsages.Signing,
                 };
-                return (CngKey.Create(CngAlgorithm.ECDsaP256, KeyName, parameters), ProtectionOf(provider));
+                var created = CngKey.Create(CngAlgorithm.ECDsaP256, KeyName, parameters);
+                StartupLog.Write("키 생성 성공", provider.Provider);
+                return (created, ProtectionOf(provider));
             }
-            catch (CryptographicException)
+            catch (Exception ex)
             {
-                // 제공자 미지원 등. 다음 제공자로 넘어간다.
-                // 1단계에서 이미 조회했으므로 "이미 존재"로 여기 오지는 않는다.
+                // 제공자 미지원, TPM 미탑재 등. 다음 제공자로 넘어간다.
+                // 왜 실패했는지 남기지 않으면 소프트웨어로 떨어진 이유를 알 수 없다.
+                StartupLog.Write("키 생성 실패", $"{provider.Provider}: {ex.GetType().Name} {ex.Message}");
             }
         }
 
