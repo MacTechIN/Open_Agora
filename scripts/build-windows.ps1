@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Windows에서 CivicAgora를 빌드하고 실행한다.
 
@@ -29,34 +29,59 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Push-Location $repo
 
+# 콘솔 출력 인코딩을 UTF-8로 맞춘다. 맞추지 않으면 한글이 깨진다.
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
+
 function Step($text) { Write-Host "`n▶ $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host "✗ $text" -ForegroundColor Red; exit 1 }
 
+# msbuild는 일반 PowerShell의 PATH에 없는 것이 정상이다.
+# Visual Studio 설치 위치를 vswhere로 찾아 직접 지정한다.
+function Find-MSBuild {
+    if (Get-Command msbuild -ErrorAction SilentlyContinue) {
+        return (Get-Command msbuild).Source
+    }
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path $vswhere)) { return $null }
+    $path = & $vswhere -latest -products * `
+        -requires Microsoft.Component.MSBuild `
+        -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+    return $path
+}
+
 # ── 선행 도구 확인 ────────────────────────────────────────────────
 Step "선행 도구 확인"
+
+$script:MSBuild = Find-MSBuild
+
 $missing = @()
-foreach ($tool in @('cargo', 'dotnet', 'msbuild')) {
+foreach ($tool in @('cargo', 'dotnet')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { $missing += $tool }
 }
+if (-not $script:MSBuild) { $missing += 'msbuild' }
 if ($missing) {
     Write-Host "다음 도구가 없습니다: $($missing -join ', ')" -ForegroundColor Red
     Write-Host @"
 
 설치 방법:
-  cargo    https://rustup.rs
-  dotnet   winget install Microsoft.DotNet.SDK.8
-  msbuild  Visual Studio Build Tools + 'Windows 앱 개발' 워크로드
-           winget install Microsoft.VisualStudio.2022.BuildTools
-           설치 관리자에서 '.NET 데스크톱 빌드 도구'와
-           'Windows 앱 개발 빌드 도구'를 선택해야 합니다.
+  cargo    winget install Rustlang.Rustup
+           설치 후 PowerShell을 새로 열어야 PATH가 잡힙니다.
 
-msbuild가 PATH에 없으면 'Developer PowerShell for VS 2022'에서 실행하십시오.
+  dotnet   winget install Microsoft.DotNet.SDK.8
+
+  msbuild  winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+
+           WinUI의 리소스(PRI) 생성 도구가 필요하므로 위 워크로드를
+           반드시 포함해야 합니다.
+
+설치 후 PowerShell을 새로 열고 다시 실행하십시오.
 "@
     exit 1
 }
-foreach ($tool in @('cargo', 'dotnet', 'msbuild')) {
+foreach ($tool in @('cargo', 'dotnet')) {
     Write-Host ("  {0,-10} {1}" -f $tool, (Get-Command $tool).Source)
 }
+Write-Host ("  {0,-10} {1}" -f 'msbuild', $script:MSBuild)
 
 # ── C# 바인딩 생성기 ──────────────────────────────────────────────
 $bindgenTag = 'v0.9.2+v0.28.3'
@@ -84,16 +109,16 @@ if (-not $SkipCore) {
 $out = Join-Path $repo 'dist\windows'
 
 Step "복원"
-msbuild apps\windows\CivicAgora.Windows.csproj /t:Restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /v:minimal
+& $script:MSBuild apps\windows\CivicAgora.Windows.csproj /t:Restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /v:minimal
 if ($LASTEXITCODE -ne 0) { Fail "복원 실패" }
 
 Step "앱 빌드"
-msbuild apps\windows\CivicAgora.Windows.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:PublishDir="$out\" /v:minimal
+& $script:MSBuild apps\windows\CivicAgora.Windows.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:PublishDir="$out\" /v:minimal
 if ($LASTEXITCODE -ne 0) { Fail "앱 빌드 실패" }
 
 Step "진단 도구 빌드"
-msbuild apps\windows-diag\CivicAgora.Diagnose.csproj /t:Restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /v:minimal | Out-Null
-msbuild apps\windows-diag\CivicAgora.Diagnose.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:PublishDir="$out\diagnose\" /v:minimal
+& $script:MSBuild apps\windows-diag\CivicAgora.Diagnose.csproj /t:Restore /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /v:minimal | Out-Null
+& $script:MSBuild apps\windows-diag\CivicAgora.Diagnose.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 /p:PublishDir="$out\diagnose\" /v:minimal
 if ($LASTEXITCODE -ne 0) { Write-Host "  진단 도구 빌드 실패 (본체에는 영향 없음)" -ForegroundColor Yellow }
 
 Write-Host "`n✓ 빌드 완료: $out" -ForegroundColor Green

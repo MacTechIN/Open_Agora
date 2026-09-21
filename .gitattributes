@@ -1,0 +1,3 @@
+# PowerShell 5.1은 BOM 없는 UTF-8을 CP949로 읽어 한글이 깨진다.
+# BOM을 보존하고 CRLF로 체크아웃한다.
+*.ps1 text eol=crlf working-tree-encoding=UTF-8
