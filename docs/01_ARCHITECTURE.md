@@ -9,7 +9,7 @@
 │  Windows (WinUI 3)          Android (Jetpack Compose)     │
 │         └──────────┬──────────────────┘                   │
 │            공유 Rust 코어 (civicagora-core)                │
-│            · Secp256k1 키페어 / OS 보안 저장소             │
+│            · P-256 키 (플랫폼 하드웨어 저장소가 보관)      │
 │            · ZK 증명 생성 (rapidsnark, 네이티브)           │
 │            · rust-libp2p 노드 (GossipSub, NAT 통과)        │
 │            · 로컬 캐시 (SQLite) 및 오프라인 큐             │

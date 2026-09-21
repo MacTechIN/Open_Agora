@@ -7,6 +7,31 @@
 namespace civicagora {
     // VS-A1: 골격 검증용. 양 플랫폼에서 이 호출이 성공하면 바닥이 뚫린 것이다.
     CoreInfo core_info();
+
+    // VS-A2: 신원.
+    //
+    // 개인키를 다루는 함수가 없다는 점이 설계다. 키 생성과 서명은 플랫폼의
+    // 하드웨어 저장소가 하고, 코어는 공개키만 받는다. 코어가 개인키를 다룰
+    // 수 있다면 언젠가 다루게 된다.
+
+    // P-256 공개키(SEC1, 압축/비압축 모두 허용)로 did:key를 만든다.
+    [Throws=IdentityError]
+    string did_from_public_key(sequence<u8> public_key);
+
+    // did:key에서 압축 공개키를 복원한다.
+    [Throws=IdentityError]
+    sequence<u8> public_key_from_did(string did);
+
+    // 서명을 검증한다. 서명은 P1363 형식(r||s, 64바이트).
+    [Throws=IdentityError]
+    boolean verify_signature(string did, sequence<u8> message, sequence<u8> signature);
+};
+
+[Error]
+interface IdentityError {
+    InvalidPublicKey();
+    InvalidDid(string reason);
+    InvalidSignature();
 };
 
 // 코어 빌드 식별 정보

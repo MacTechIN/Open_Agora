@@ -11,10 +11,14 @@ OUT="$ROOT/target/bindings"
 UDL="$ROOT/core/src/civicagora.udl"
 CFG="$ROOT/core/uniffi.toml"
 
-rm -rf "$OUT"
-cargo run -q --manifest-path "$ROOT/core/Cargo.toml" --bin uniffi-bindgen -- \
-    generate "$UDL" --language kotlin --out-dir "$OUT/kotlin" --config "$CFG" 2>&1 | grep -v ktlint || true
-uniffi-bindgen-cs "$UDL" --out-dir "$OUT/csharp" --config "$CFG" 2>&1 | grep -v CSharpier || true
+# SKIP_GENERATE=1이면 이미 생성된 바인딩을 그대로 검사한다.
+# 게이트 자체가 불일치를 잡아내는지 역검증할 때 쓴다.
+if [ "${SKIP_GENERATE:-0}" != "1" ]; then
+    rm -rf "$OUT"
+    cargo run -q --manifest-path "$ROOT/core/Cargo.toml" --bin uniffi-bindgen -- \
+        generate "$UDL" --language kotlin --out-dir "$OUT/kotlin" --config "$CFG" 2>&1 | grep -v ktlint || true
+    uniffi-bindgen-cs "$UDL" --out-dir "$OUT/csharp" --config "$CFG" 2>&1 | grep -v CSharpier || true
+fi
 
 KT="$(find "$OUT/kotlin" -name '*.kt' | head -1)"
 CS="$OUT/civicagora.cs"
@@ -43,6 +47,25 @@ for field in $(grep -oP '^\s+\w+ \K\w+(?=;)' "$UDL" | sort -u); do
     cs_has=$(grep -c "@$camel" "$CS" || true)
     check "필드 $camel" "$([ "$kt_has" -gt 0 ] && echo 있음 || echo 없음)" \
                         "$([ "$cs_has" -gt 0 ] && echo 있음 || echo 없음)"
+done
+
+# 3) UDL namespace의 함수가 양쪽 바인딩에 모두 나타나야 한다.
+#    필드만 검사하면 함수를 추가하고 한쪽만 재생성한 상태를 놓친다.
+for fn in $(sed -n '/^namespace/,/^};/p' "$UDL" | grep -oP '\b\w+(?=\()' | sort -u); do
+    camel="$(echo "$fn" | sed -E 's/_([a-z])/\U\1/g')"
+    pascal="$(echo "$camel" | sed -E 's/^(.)/\U\1/')"
+    kt_has=$(grep -cE "fun \`?${camel}\`?\(" "$KT" || true)
+    cs_has=$(grep -cE "\b${pascal}\(" "$CS" || true)
+    check "함수 $fn" "$([ "$kt_has" -gt 0 ] && echo 있음 || echo 없음)" \
+                     "$([ "$cs_has" -gt 0 ] && echo 있음 || echo 없음)"
+done
+
+# 4) UDL의 오류 변형이 양쪽에 모두 나타나야 한다.
+for variant in $(sed -n '/^\[Error\]/,/^};/p' "$UDL" | grep -oP '^\s+\K\w+(?=\()' | sort -u); do
+    kt_has=$(grep -c "$variant" "$KT" || true)
+    cs_has=$(grep -c "$variant" "$CS" || true)
+    check "오류 $variant" "$([ "$kt_has" -gt 0 ] && echo 있음 || echo 없음)" \
+                          "$([ "$cs_has" -gt 0 ] && echo 있음 || echo 없음)"
 done
 
 if [ "$fail" -ne 0 ]; then

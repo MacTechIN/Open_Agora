@@ -17,6 +17,8 @@
 
 uniffi::include_scaffolding!("civicagora");
 
+mod identity;
 mod info;
 
+pub use identity::{did_from_public_key, public_key_from_did, verify_signature, IdentityError};
 pub use info::{core_info, CoreInfo, SPEC_REVISION};

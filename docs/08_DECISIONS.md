@@ -203,6 +203,27 @@
 
 ---
 
+## D15. 기기 키 곡선 — secp256k1 vs P-256
+
+**증거**
+* `ref_docs/01_SYSTEM_ARCHITECTURE.md` — "로컬 키페어 (Secp256k1 DID)"
+* `09_DEVELOPMENT_PLAN.md` VS-A2 수용 기준 — "개인키가 Android Keystore / Windows Hello에 저장되고 앱 메모리로 평문 노출되지 않음"
+* Android 문서 — StrongBox KeyMint 지원 목록은 **RSA 2048, AES, ECDSA·ECDH P-256, HMAC-SHA256, 3DES**. secp256k1은 없다
+
+**충돌** 두 요구가 Android에서 양립하지 않는다. secp256k1을 쓰면 하드웨어 보호를 포기하고 소프트웨어 키로 내려와야 하며, 그러면 개인키가 앱 메모리에 올라온다.
+
+**확정** **P-256(secp256r1)** 을 기기 키 곡선으로 쓴다. DID는 `did:key`로 표현한다.
+
+**근거** 우선순위는 하드웨어 보호입니다. 개인키가 메모리에 오르면 코어 덤프, 디버거, 루팅된 기기에서 탈취될 수 있고, 이 플랫폼에서 키 탈취는 곧 시민 신원 도용입니다. 반면 secp256k1을 포기해 잃는 것은 크지 않습니다.
+
+* Ceramic은 `did:key`와 `did:pkh`를 모두 지원하며 `did:key`는 P-256을 포함한다
+* Semaphore 신원 커밋먼트는 Poseidon 기반 비밀에서 파생되며 EC 키가 아니다
+* 온체인 제출이 필요한 지점은 릴레이어로 처리할 수 있어 기기 키가 이더리움 계정일 필요가 없다
+
+**구현 제약** 코어는 개인키를 다루지 않습니다. 키 생성과 서명은 플랫폼(Android Keystore / Windows CNG)이 수행하고, 코어는 공개키를 받아 DID를 만들고 서명을 검증하기만 합니다. **코어에 개인키를 다루는 함수를 만들지 않는 것 자체가 설계**입니다. → `core/src/identity.rs`, `docs/09_DEVELOPMENT_PLAN.md` VS-A2
+
+---
+
 ## 미결 사항
 
 확정하지 않고 남긴 항목입니다. 해당 단계 착수 전에 결정해야 합니다.

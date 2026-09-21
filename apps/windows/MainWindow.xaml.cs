@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 
 namespace CivicAgora.Windows;
@@ -19,5 +20,21 @@ public sealed partial class MainWindow : Window
         SpecText.Text = $"rev {info.specRevision}";
         TargetText.Text = info.target;
         ProfileText.Text = info.debug ? "debug" : "release";
+
+        // 키는 CNG 안에 있고 여기선 DID만 받는다. 실패해도 창이 뜨지 않으면
+        // 원인을 알 수 없으므로 화면에 표시한다.
+        try
+        {
+            var identity = DeviceIdentity.LoadOrCreate();
+            DidText.Text = identity.Did;
+            ProtectionText.Text = identity.Protection == DeviceIdentity.Protection.Hardware
+                ? "하드웨어 (TPM)"
+                : "소프트웨어 KSP — 내보내기 차단";
+        }
+        catch (Exception ex)
+        {
+            DidText.Text = "신원 생성 실패";
+            ProtectionText.Text = ex.Message;
+        }
     }
 }

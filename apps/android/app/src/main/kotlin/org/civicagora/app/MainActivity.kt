@@ -33,9 +33,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    // 코어 호출은 부수효과가 없으므로 컴포지션당 한 번만 수행한다.
                     val info = remember { coreInfo() }
-                    CoreInfoScreen(info)
+                    // 키는 Keystore 안에 있고 여기선 DID만 받는다.
+                    // 실패해도 앱이 죽지 않게 한다. 신원 생성 실패는 진단 정보가 필요하다.
+                    val identity = remember {
+                        runCatching { DeviceIdentity.loadOrCreate() }
+                    }
+                    CoreInfoScreen(info, identity)
                 }
             }
         }
@@ -43,16 +47,34 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun CoreInfoScreen(info: CoreInfo) {
+private fun CoreInfoScreen(
+    info: CoreInfo,
+    identity: Result<DeviceIdentity.Identity>,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("CivicAgora", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "시민 공론장 · 골격 검증 (VS-A1)",
+            "시민 공론장 · 기기 신원 (VS-A2)",
             style = MaterialTheme.typography.bodyMedium,
         )
+
+        Card {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                identity.fold(
+                    onSuccess = {
+                        InfoRow("내 DID", it.did)
+                        InfoRow("키 보호", protectionLabel(it.protection))
+                    },
+                    onFailure = { InfoRow("신원 생성 실패", it.message ?: it::class.java.simpleName) },
+                )
+            }
+        }
         Card(modifier = Modifier.padding(top = 12.dp)) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -65,6 +87,12 @@ private fun CoreInfoScreen(info: CoreInfo) {
             }
         }
     }
+}
+
+private fun protectionLabel(protection: DeviceIdentity.Protection): String = when (protection) {
+    DeviceIdentity.Protection.STRONGBOX -> "StrongBox (전용 보안 칩)"
+    DeviceIdentity.Protection.TEE -> "TEE (신뢰 실행 환경)"
+    DeviceIdentity.Protection.SOFTWARE -> "소프트웨어 — 보호 없음"
 }
 
 @Composable

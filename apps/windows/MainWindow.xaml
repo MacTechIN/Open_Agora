@@ -8,8 +8,27 @@
         <StackPanel Padding="32" Spacing="12">
             <TextBlock Text="CivicAgora"
                        Style="{StaticResource TitleLargeTextBlockStyle}" />
-            <TextBlock Text="시민 공론장 · 골격 검증 (VS-A1)"
+            <TextBlock Text="시민 공론장 · 기기 신원 (VS-A2)"
                        Style="{StaticResource BodyTextBlockStyle}" />
+
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20"
+                    Margin="0,12,0,0">
+                <StackPanel Spacing="12">
+                    <StackPanel>
+                        <TextBlock Text="내 DID" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="DidText" TextWrapping="Wrap"
+                                   Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="키 보호" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="ProtectionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
