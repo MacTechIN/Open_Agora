@@ -1,0 +1,26 @@
+// CivicAgora 코어 인터페이스 — 단일 정의 파일
+//
+// 이 파일이 Kotlin(Android)·C#(Windows) 바인딩의 유일한 원천이다.
+// 손으로 쓴 FFI 래퍼는 금지한다. 두 플랫폼이 어긋나는 가장 흔한 원인이다.
+//   → docs/05_CLIENT_APPS.md §1.2, docs/09_DEVELOPMENT_PLAN.md G-PARITY
+
+namespace civicagora {
+    // VS-A1: 골격 검증용. 양 플랫폼에서 이 호출이 성공하면 바닥이 뚫린 것이다.
+    CoreInfo core_info();
+};
+
+// 코어 빌드 식별 정보
+dictionary CoreInfo {
+    // 크레이트 버전 (Cargo.toml)
+    string version;
+
+    // 명세 계약 버전. 코어와 앱이 같은 명세를 구현하는지 확인한다.
+    // 명세가 바뀌어 호환이 깨지면 이 값을 올린다.
+    u32 spec_revision;
+
+    // 빌드 대상 트리플 (예: aarch64-linux-android)
+    string target;
+
+    // 디버그 빌드 여부. 릴리스 앱에서 true면 배포 사고다.
+    boolean debug;
+};

@@ -1,0 +1,14 @@
+# 바인딩 생성 설정 — Kotlin(Android)·C#(Windows) 공통 원천
+# 손으로 쓴 FFI 래퍼 금지 (G-PARITY). docs/05_CLIENT_APPS.md §1.2
+
+[bindings.kotlin]
+package_name = "org.civicagora.core"
+cdylib_name = "civicagora_core"
+
+[bindings.csharp]
+namespace = "CivicAgora.Core"
+# 기본값 internal은 앱 어셈블리에서 접근 불가하다.
+access_modifier = "public"
+# Kotlin과 동일한 실제 cdylib 이름을 써야 한다. 기본값(uniffi_civicagora)은
+# cargo가 만드는 파일명과 달라 런타임에 DllNotFound로 터진다.
+cdylib_name = "civicagora_core"

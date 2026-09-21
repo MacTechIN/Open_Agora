@@ -1,0 +1,28 @@
+[package]
+name = "civicagora-core"
+description = "CivicAgora 공유 코어 — 키/DID, ZK 증명, P2P, 로컬 저장"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+# cdylib: Android(.so) / Windows(.dll) 적재용
+# staticlib: iOS 등 정적 링크 대비
+# lib: uniffi-bindgen 및 Rust 테스트용
+crate-type = ["cdylib", "staticlib", "lib"]
+name = "civicagora_core"
+
+[dependencies]
+uniffi = { version = "0.28.3", features = ["cli"] }
+thiserror = "1"
+
+[build-dependencies]
+uniffi = { version = "0.28.3", features = ["build"] }
+
+[dev-dependencies]
+uniffi = { version = "0.28.3", features = ["bindgen-tests"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"

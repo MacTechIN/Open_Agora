@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>CivicAgora.Windows</RootNamespace>
+    <AssemblyName>CivicAgora</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- 설치나 코드 서명 없이 압축 해제 후 바로 실행되도록 구성한다.
+         MSIX 패키지 배포는 스토어 등록 단계(VS-H5)에서 별도로 다룬다. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+  </ItemGroup>
+
+  <!-- UDL에서 생성된 C# 바인딩. 손으로 수정하지 않는다 (G-PARITY).
+       생성 위치는 CI와 로컬 빌드 스크립트가 맞춘다. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\target\bindings\csharp\civicagora.cs"
+             Link="Generated\civicagora.cs"
+             Condition="Exists('$(MSBuildThisFileDirectory)..\..\target\bindings\csharp\civicagora.cs')" />
+  </ItemGroup>
+
+  <!-- 공유 Rust 코어의 네이티브 DLL을 실행 파일 옆에 배치한다. -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\target\x86_64-pc-windows-msvc\release\civicagora_core.dll"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\target\x86_64-pc-windows-msvc\release\civicagora_core.dll')">
+      <Link>civicagora_core.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

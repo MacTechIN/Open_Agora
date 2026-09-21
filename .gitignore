@@ -1,0 +1,26 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Android
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/local.properties
+.gradle/
+
+# .NET
+apps/windows/bin/
+apps/windows/obj/
+dist/
+
+# 서명 자료는 절대 커밋하지 않는다
+*.keystore
+*.jks
+*.pfx
+*.p12
+
+# 에디터
+.idea/
+.vs/
+*.user

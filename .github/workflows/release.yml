@@ -1,0 +1,145 @@
+name: Release
+
+# 공개 배포 링크 생성.
+#   · main 푸시  → 'dev' 프리릴리스를 갱신 (항상 최신 개발 빌드 링크 유지)
+#   · v* 태그    → 정식 릴리스 발행
+# 산출물은 GitHub Releases에 올라가 누구나 링크로 받을 수 있다.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  UNIFFI_BINDGEN_CS_TAG: v0.9.2+v0.28.3
+
+jobs:
+  android:
+    name: Android APK 빌드
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: APK 빌드
+        working-directory: apps/android
+        # 디버그 서명 APK를 배포한다. 스토어 등록용 릴리스 서명은 VS-H5에서
+        # 저장소 시크릿(키스토어)을 추가한 뒤 전환한다.
+        run: gradle --no-daemon assembleDebug
+
+      - name: 산출물 이름 정리
+        run: |
+          mkdir -p dist
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk \
+             dist/CivicAgora-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/CivicAgora-android.apk
+
+  windows:
+    name: Windows 앱 빌드
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+
+      - name: C# 바인드젠 캐시
+        id: cache-bindgen
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/uniffi-bindgen-cs.exe
+          key: bindgen-cs-win-${{ env.UNIFFI_BINDGEN_CS_TAG }}
+      - name: C# 바인드젠 설치
+        if: steps.cache-bindgen.outputs.cache-hit != 'true'
+        run: |
+          cargo install uniffi-bindgen-cs `
+            --git https://github.com/NordSecurity/uniffi-bindgen-cs `
+            --tag "$env:UNIFFI_BINDGEN_CS_TAG"
+
+      - name: 코어 빌드
+        run: cargo build --release --target x86_64-pc-windows-msvc -p civicagora-core
+
+      - name: C# 바인딩 생성
+        run: |
+          uniffi-bindgen-cs core/src/civicagora.udl `
+            --out-dir target/bindings/csharp `
+            --config core/uniffi.toml
+
+      - name: 앱 발행 (unpackaged self-contained)
+        run: |
+          dotnet publish apps/windows/CivicAgora.Windows.csproj `
+            -c Release -r win-x64 -o dist/windows
+
+      - name: 압축
+        run: Compress-Archive -Path dist/windows/* -DestinationPath CivicAgora-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: CivicAgora-windows-x64.zip
+
+  publish:
+    name: 릴리스 발행
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 산출물 확인
+        run: ls -lh dist
+
+      - name: 개발 빌드 발행 (main)
+        if: startsWith(github.ref, 'refs/tags/') == false
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: 개발 빌드 (최신 main)
+          prerelease: true
+          body: |
+            `main` 브랜치의 최신 개발 빌드입니다. 커밋 ${{ github.sha }}
+
+            | 플랫폼 | 다운로드 |
+            |-|-|
+            | Android | [CivicAgora-android.apk](https://github.com/${{ github.repository }}/releases/download/dev/CivicAgora-android.apk) |
+            | Windows x64 | [CivicAgora-windows-x64.zip](https://github.com/${{ github.repository }}/releases/download/dev/CivicAgora-windows-x64.zip) |
+
+            **Android** — APK를 받아 설치합니다. 스토어를 거치지 않으므로
+            "출처를 알 수 없는 앱 설치"를 허용해야 합니다. 디버그 서명본입니다.
+
+            **Windows** — 압축을 풀고 `CivicAgora.exe`를 실행합니다. 설치가
+            필요 없습니다. 코드 서명이 없어 SmartScreen 경고가 뜰 수 있습니다.
+
+            현재 단계(VS-A1)에서는 공유 코어 호출 결과를 표시하는 골격 화면만
+            동작합니다.
+          files: dist/*
+
+      - name: 정식 릴리스 발행 (태그)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

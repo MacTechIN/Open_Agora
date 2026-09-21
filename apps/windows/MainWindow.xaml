@@ -1,0 +1,41 @@
+<Window
+    x:Class="CivicAgora.Windows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="CivicAgora">
+
+    <ScrollViewer>
+        <StackPanel Padding="32" Spacing="12">
+            <TextBlock Text="CivicAgora"
+                       Style="{StaticResource TitleLargeTextBlockStyle}" />
+            <TextBlock Text="시민 공론장 · 골격 검증 (VS-A1)"
+                       Style="{StaticResource BodyTextBlockStyle}" />
+
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20"
+                    Margin="0,12,0,0">
+                <StackPanel Spacing="12">
+                    <StackPanel>
+                        <TextBlock Text="코어 버전" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="VersionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="명세 계약" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="SpecText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="빌드 대상" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="TargetText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="빌드 프로필" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="ProfileText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Window>
