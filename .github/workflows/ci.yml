@@ -92,11 +92,17 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: cargo-ndk 설치
-        if: startsWith(matrix.target, 'aarch64-linux-android') || startsWith(matrix.target, 'x86_64-linux-android')
-        uses: taiki-e/install-action@v2
+      # 바이너리 배포 다운로드가 504로 깨진 적이 있어 소스 설치로 고정한다.
+      - name: cargo-ndk 캐시
+        id: cache-ndk
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
         with:
-          tool: cargo-ndk
+          path: ~/.cargo/bin/cargo-ndk
+          key: cargo-ndk-${{ runner.os }}-v4
+      - name: cargo-ndk 설치
+        if: runner.os == 'Linux' && steps.cache-ndk.outputs.cache-hit != 'true'
+        run: cargo install cargo-ndk --locked
 
       - name: 빌드 (Android)
         if: runner.os == 'Linux'

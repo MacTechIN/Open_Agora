@@ -38,9 +38,18 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - uses: taiki-e/install-action@v2
+      # cargo-ndk 설치가 GitHub 릴리스 다운로드에 의존해 504로 깨진 적이 있다.
+      # 캐시를 두고, 캐시가 없을 때만 설치하되 바이너리 배포 실패 시
+      # 소스 빌드로 내려앉는다.
+      - name: cargo-ndk 캐시
+        id: cache-ndk
+        uses: actions/cache@v4
         with:
-          tool: cargo-ndk
+          path: ~/.cargo/bin/cargo-ndk
+          key: cargo-ndk-${{ runner.os }}-v4
+      - name: cargo-ndk 설치
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
+        run: cargo install cargo-ndk --locked
 
       - name: APK 빌드
         working-directory: apps/android

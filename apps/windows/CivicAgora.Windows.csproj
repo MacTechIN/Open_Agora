@@ -29,13 +29,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
-  <!-- MainWindow.xaml은 SDK가 Page로 자동 포함하므로 선언하지 않는다.
-       선언하면 NETSDK1022(중복 Page)로 깨진다.
-       App.xaml은 자동 포함 대상이 아니며, ApplicationDefinition으로 지정해야
-       XAML 컴파일러가 진입점 Main을 생성한다. -->
-  <ItemGroup>
-    <ApplicationDefinition Include="App.xaml" Generator="MSBuild:Compile" />
-  </ItemGroup>
+  <!-- XAML 항목은 선언하지 않는다. 복원을 분리해 Windows App SDK 타깃이
+       정상 임포트되면 App.xaml(ApplicationDefinition)과 MainWindow.xaml(Page)이
+       모두 자동 포함된다. 직접 선언하면 NETSDK1022 / WMC1012로 깨진다. -->
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
