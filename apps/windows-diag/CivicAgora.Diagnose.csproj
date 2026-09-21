@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WinUI와 무관한 콘솔 진단 도구.
+       본체가 창도 없이 죽을 때, 문제가 네이티브 코어인지 WinUI 계층인지
+       갈라내기 위해 쓴다. Windows App SDK에 의존하지 않는다. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>CivicAgora.Diagnose</RootNamespace>
+    <AssemblyName>CivicAgora.Diagnose</AssemblyName>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\..\target\bindings\csharp\civicagora.cs"
+             Link="Generated\civicagora.cs"
+             Condition="Exists('$(MSBuildThisFileDirectory)..\..\target\bindings\csharp\civicagora.cs')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\target\x86_64-pc-windows-msvc\release\civicagora_core.dll"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\target\x86_64-pc-windows-msvc\release\civicagora_core.dll')">
+      <Link>civicagora_core.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

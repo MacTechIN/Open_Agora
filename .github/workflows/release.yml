@@ -132,6 +132,16 @@ jobs:
             /p:RuntimeIdentifier=win-x64 `
             /p:PublishDir=${{ github.workspace }}\dist\windows\
 
+      # 본체가 창도 없이 죽을 때 원인을 갈라내기 위한 콘솔 도구.
+      # WinUI에 의존하지 않으므로, 이것이 되고 본체가 안 되면 WinUI 계층 문제다.
+      - name: 진단 도구 발행
+        run: |
+          msbuild apps/windows-diag/CivicAgora.Diagnose.csproj /t:Restore `
+            /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64
+          msbuild apps/windows-diag/CivicAgora.Diagnose.csproj /t:Publish `
+            /p:Configuration=Release /p:Platform=x64 /p:RuntimeIdentifier=win-x64 `
+            /p:PublishDir=${{ github.workspace }}\dist\windows\diagnose\
+
       - name: 압축
         run: Compress-Archive -Path dist/windows/* -DestinationPath CivicAgora-windows-x64.zip
 

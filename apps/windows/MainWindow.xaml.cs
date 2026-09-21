@@ -11,7 +11,9 @@ public sealed partial class MainWindow : Window
 {
     public MainWindow()
     {
+        StartupLog.Write("MainWindow InitializeComponent 시작");
         InitializeComponent();
+        StartupLog.Write("MainWindow InitializeComponent 완료");
 
         // 코어 호출은 반드시 보호한다. 생성자에서 예외가 나가면 창이 뜨기 전에
         // 앱이 죽고, 사용자는 아무 메시지도 보지 못한다. 네이티브 DLL 로드
@@ -19,7 +21,9 @@ public sealed partial class MainWindow : Window
         try
         {
             // 생성된 바인딩을 통한 코어 호출. 손으로 쓴 P/Invoke를 두지 않는다.
+            StartupLog.Write("코어 호출 시도");
             var info = global::CivicAgora.Core.CivicagoraMethods.CoreInfo();
+            StartupLog.Write("코어 호출 성공", info.version);
 
             VersionText.Text = info.version;
             SpecText.Text = $"rev {info.specRevision}";
@@ -28,6 +32,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            StartupLog.WriteException("코어 호출", ex);
             VersionText.Text = "코어를 불러오지 못했습니다";
             SpecText.Text = ex.GetType().Name;
             TargetText.Text = ex.Message;
@@ -38,7 +43,9 @@ public sealed partial class MainWindow : Window
         // 원인을 알 수 없으므로 화면에 표시한다.
         try
         {
+            StartupLog.Write("신원 생성 시도");
             var identity = DeviceIdentity.LoadOrCreate();
+            StartupLog.Write("신원 생성 성공");
             DidText.Text = identity.Did;
             ProtectionText.Text = identity.Protection == DeviceIdentity.Protection.Hardware
                 ? "하드웨어 (TPM)"
@@ -46,6 +53,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            StartupLog.WriteException("신원 생성", ex);
             DidText.Text = "신원 생성 실패";
             ProtectionText.Text = ex.Message;
         }

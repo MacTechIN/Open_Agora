@@ -12,19 +12,35 @@ public partial class App : Application
 
     public App()
     {
+        StartupLog.WriteHeader();
+        StartupLog.Write("App 생성자 진입");
+
         InitializeComponent();
+        StartupLog.Write("InitializeComponent 완료");
 
         // 미처리 예외로 조용히 종료되면 사용자도 우리도 원인을 알 수 없다.
         // 최소한 로그에는 남긴다.
         UnhandledException += (_, e) =>
         {
+            StartupLog.WriteException("미처리 예외", e.Exception);
             System.Diagnostics.Debug.WriteLine($"[CivicAgora] 미처리 예외: {e.Exception}");
         };
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        StartupLog.Write("OnLaunched 진입");
+        try
+        {
+            _window = new MainWindow();
+            StartupLog.Write("MainWindow 생성 완료");
+            _window.Activate();
+            StartupLog.Write("창 활성화 완료 — 정상 시작");
+        }
+        catch (Exception ex)
+        {
+            StartupLog.WriteException("창 생성", ex);
+            throw;
+        }
     }
 }
