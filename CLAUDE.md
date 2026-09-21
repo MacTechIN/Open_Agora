@@ -91,6 +91,7 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 | `docs/09_DEVELOPMENT_PLAN.md` | **개발 작업 단위.** 38개 수직 슬라이스, 의존 그래프, 불변식 게이트 |
 | `docs/10_AI_JUDGMENTS.md` | AI 판단의 구조화 결정 설계, 상용 API와의 비교 |
 | `docs/11_SOVEREIGN_JUDGMENT.md` | **주권 판단 계층.** 제약 채점·정본 재현·모델 앵커링·G-BIAS |
+| `docs/12_ONCHAIN_DEPENDENCIES.md` | 온체인은 대부분 기존 프로토콜로 대체. **자체 신뢰 설정 금지** |
 
 ## 목표 스택 (아직 미설치)
 

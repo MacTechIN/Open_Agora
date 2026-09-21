@@ -213,5 +213,7 @@
 | 성향 자기 신고 수집 여부 | 알고리즘에 쓰지 않고 본인 열람용으로만 쓴다면 수집하지 않는 편이 안전할 수 있음 | Phase 1 착수 전 |
 | 잠재 차원 $d$ 확장 | $d=1$(좌우 축)로 시작하되, 다축 이념 지형이 관측되면 $d=2$ 검토 | 데이터 축적 후 |
 | 허용 이메일 도메인 범위 | 좁히면 참여 장벽, 넓히면 대량 계정 생성 위험 | Phase 1 |
-| L2 체인 최종 선택 | Arbitrum vs Polygon. 가스비·검열저항성·생태계 비교 필요 | Phase 1 |
+| L2 체인 최종 선택 | Semaphore·EAS가 모두 배포된 체인이어야 한다는 조건이 추가됨. 확인된 범위에서 Arbitrum One이 충족 (→ `12_ONCHAIN_DEPENDENCIES.md`) | Phase 1 |
+| **ComposeDB 지원 상태** | 현재 Ceramic 문서에 ComposeDB가 등장하지 않는다. 데이터 모델 전체가 여기 기반이므로 VS-B2 착수 전 재검토 필요 | **Phase 1 최우선** |
+| 온체인 기존 서비스 채택 | Semaphore 세리머니 공개 여부 등 확인 후 확정 (→ `12_ONCHAIN_DEPENDENCIES.md` §6) | Phase 1 |
 | Windows UI 언어 | C# + WinUI 3로 잠정 확정. C++/WinRT는 코어 FFI가 더 단순하나 개발 속도가 느림 | Phase 3 착수 전 |
