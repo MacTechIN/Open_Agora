@@ -16,6 +16,8 @@
 | [`07_ROADMAP.md`](./07_ROADMAP.md) | 개정 개발 로드맵 |
 | [`08_DECISIONS.md`](./08_DECISIONS.md) | **검증 기록.** 기존 문서 충돌 14건의 확정 결론과 근거 |
 | [`09_DEVELOPMENT_PLAN.md`](./09_DEVELOPMENT_PLAN.md) | **개발계획서.** 38개 수직 슬라이스, 의존 그래프, 스텁 교체 원장 |
+| [`10_AI_JUDGMENTS.md`](./10_AI_JUDGMENTS.md) | AI 판단 지점의 구조화 결정 설계와 기존 방식 비교 |
+| [`11_SOVEREIGN_JUDGMENT.md`](./11_SOVEREIGN_JUDGMENT.md) | **주권 판단 계층.** 제약 채점, 정본 재현, 모델 앵커링, G-BIAS 게이트 |
 
 ## 읽는 순서
 
