@@ -19,6 +19,7 @@
 | [`10_AI_JUDGMENTS.md`](./10_AI_JUDGMENTS.md) | AI 판단 지점의 구조화 결정 설계와 기존 방식 비교 |
 | [`11_SOVEREIGN_JUDGMENT.md`](./11_SOVEREIGN_JUDGMENT.md) | **주권 판단 계층.** 제약 채점, 정본 재현, 모델 앵커링, G-BIAS 게이트 |
 | [`12_ONCHAIN_DEPENDENCIES.md`](./12_ONCHAIN_DEPENDENCIES.md) | 온체인 계층에서 직접 만들 것과 기존 서비스로 대체할 것 |
+| [`13_VS_C0_FINDINGS.md`](./13_VS_C0_FINDINGS.md) | **VS-C0 확인 결과.** ComposeDB 중단, DKIM 레지스트리 권한 위험 |
 
 ## 읽는 순서
 

@@ -70,7 +70,16 @@ AI 추론과 행렬 분해는 개인 단말에서 돌릴 수 없어 서버가 �
 
 ---
 
-## 3. Ceramic ComposeDB 스키마
+## 3. 데이터 모델 스키마
+
+> ⚠️ **잠정.** 아래는 ComposeDB 기준으로 작성되었으나, VS-C0 조사 결과
+> ComposeDB는 사실상 중단된 상태입니다(마지막 릴리스 2024-02-27, 현재 Ceramic
+> 문서에 부재). **데이터 계층을 재선정할 때까지 이 절의 스키마는 확정이
+> 아닙니다.** 모델 구조와 필드 정의는 유효하되, 표현 문법과
+> `accountRelation: SET` 같은 플랫폼 고유 기능은 대체 스택에 맞춰 바뀝니다.
+> → `13_VS_C0_FINDINGS.md` §2, 신규 슬라이스 VS-B2′
+
+### 3.1 ComposeDB 표현 (잠정)
 
 ```graphql
 type Policy @createModel(accountRelation: LIST, description: "토론 안건") {
