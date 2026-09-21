@@ -1,0 +1,12 @@
+[project]
+name = "civicagora-moderation"
+version = "0.1.0"
+description = "CivicAgora 톤 코칭 판단 계층 (TypeSafe System One)"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

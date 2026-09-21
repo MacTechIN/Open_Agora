@@ -53,6 +53,20 @@ jobs:
       - name: Kotlin·C# 바인딩 계약 일치 확인
         run: ./scripts/check-binding-parity.sh
 
+  moderation:
+    name: 톤 코칭 판단 계층 테스트
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 의존성 설치
+        run: pip install -e 'services/moderation[dev]'
+      - name: 테스트
+        # 정책은 순수 함수라 API 자격증명 없이 전부 검증된다.
+        run: pytest services/moderation/tests -q
+
   cross-compile:
     name: 크로스 컴파일 (${{ matrix.name }})
     runs-on: ${{ matrix.os }}

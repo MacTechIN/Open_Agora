@@ -3,6 +3,7 @@ import org.gradle.api.tasks.Exec
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 // 공유 Rust 코어의 위치 (저장소 루트 기준)
@@ -34,7 +35,6 @@ android {
     kotlinOptions { jvmTarget = "17" }
 
     buildFeatures { compose = true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
 
     sourceSets["main"].java.srcDir(generatedBindings)
     // cargo-ndk가 산출한 .so를 적재한다
@@ -63,7 +63,7 @@ val abiTargets = mapOf(
     "x86_64" to "x86_64-linux-android",
 )
 
-val cargoNdkBuild by tasks.registering(Exec::class) {
+val cargoNdkBuild = tasks.register<Exec>("cargoNdkBuild") {
     group = "civicagora"
     description = "cargo-ndk로 코어를 Android ABI별로 크로스 컴파일한다"
     workingDir = repoRoot
@@ -75,7 +75,7 @@ val cargoNdkBuild by tasks.registering(Exec::class) {
     doFirst { outDir.mkdirs() }
 }
 
-val generateUniffiBindings by tasks.registering(Exec::class) {
+val generateUniffiBindings = tasks.register<Exec>("generateUniffiBindings") {
     group = "civicagora"
     description = "UDL에서 Kotlin 바인딩을 생성한다"
     dependsOn(cargoNdkBuild)

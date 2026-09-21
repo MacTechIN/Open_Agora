@@ -9,6 +9,9 @@
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+    <!-- uniffi가 생성한 C# 바인딩은 FFI 버퍼를 다루기 위해 unsafe 블록을 쓴다.
+         생성 코드이므로 고칠 수 없고, 허용하지 않으면 CS0227로 빌드가 깨진다. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- 설치나 코드 서명 없이 압축 해제 후 바로 실행되도록 구성한다.
          MSIX 패키지 배포는 스토어 등록 단계(VS-H5)에서 별도로 다룬다. -->
