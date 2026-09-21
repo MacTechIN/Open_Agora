@@ -250,6 +250,31 @@ mod tests {
         ));
     }
 
+    /// Windows 실기기의 TPM이 만든 실제 키에서 나온 DID.
+    ///
+    /// 합성 키만으로 테스트하면 플랫폼이 내보내는 형식이 우리 가정과 다를 때를
+    /// 놓친다. 이 값은 2026-09-21 Windows 11 + TPM 환경에서 관측한 것이다.
+    const 실기기_DID: &str = "did:key:zDnaewBSXeQ82kLpw79E5X3yjpPfRFz1fxApcEVaxh6TxWMP4";
+
+    #[test]
+    fn 실기기_did를_해석한다() {
+        let key = public_key_from_did(실기기_DID.to_string()).expect("파싱 실패");
+        assert_eq!(key.len(), 33, "압축 공개키여야 한다");
+        assert!(
+            matches!(key[0], 0x02 | 0x03),
+            "압축 점 접두사가 아니다: {:#x}",
+            key[0]
+        );
+    }
+
+    #[test]
+    fn 실기기_did가_왕복한다() {
+        // 플랫폼이 만든 키 → DID → 공개키 → DID 가 원본과 같아야
+        // 기기를 바꿔도 같은 신원으로 인식된다.
+        let key = public_key_from_did(실기기_DID.to_string()).unwrap();
+        assert_eq!(did_from_public_key(key).unwrap(), 실기기_DID);
+    }
+
     #[test]
     fn 잘못된_did를_거부한다() {
         for bad in ["", "did:key:", "did:web:example.com", "did:key:z!!!"] {
