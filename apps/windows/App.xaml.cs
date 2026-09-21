@@ -10,7 +10,17 @@ public partial class App : Application
 {
     private Window? _window;
 
-    public App() => InitializeComponent();
+    public App()
+    {
+        InitializeComponent();
+
+        // 미처리 예외로 조용히 종료되면 사용자도 우리도 원인을 알 수 없다.
+        // 최소한 로그에는 남긴다.
+        UnhandledException += (_, e) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[CivicAgora] 미처리 예외: {e.Exception}");
+        };
+    }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
