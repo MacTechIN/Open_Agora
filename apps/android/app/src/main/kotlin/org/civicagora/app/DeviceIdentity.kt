@@ -4,6 +4,8 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.os.Build
 import org.civicagora.core.didFromPublicKey
+import android.security.keystore.KeyInfo
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
@@ -45,11 +47,12 @@ object DeviceIdentity {
     fun loadOrCreate(): Identity {
         val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
 
-        val protection = if (store.containsAlias(ALIAS)) {
-            detectProtection(store)
-        } else {
+        if (!store.containsAlias(ALIAS)) {
             generate()
         }
+        // 생성 경로가 무엇이었든 실제 보관 위치를 읽어 표시한다.
+        // StrongBox를 요청했다고 StrongBox에 들어간다는 보장은 없다.
+        val protection = detectProtection(store)
 
         val publicKey = store.getCertificate(ALIAS).publicKey
         // 코어는 SEC1 인코딩 점을 받는다. Android는 X.509 SubjectPublicKeyInfo로
@@ -76,18 +79,17 @@ object DeviceIdentity {
         return derToP1363(der)
     }
 
-    /** StrongBox를 우선 시도하고, 없는 기기에서는 TEE로 내려앉는다. */
-    private fun generate(): Protection {
+    /** StrongBox를 우선 시도하고, 없는 기기에서는 일반 Keystore로 내려앉는다. */
+    private fun generate() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 createKey(strongBox = true)
-                return Protection.STRONGBOX
+                return
             } catch (_: Exception) {
                 // StrongBox 미탑재 기기가 다수다. 실패는 정상 경로다.
             }
         }
         createKey(strongBox = false)
-        return Protection.TEE
     }
 
     private fun createKey(strongBox: Boolean) {
@@ -109,9 +111,32 @@ object DeviceIdentity {
         }
     }
 
+    /**
+     * 키가 실제로 어디에 보관되는지 읽는다.
+     *
+     * 추측하지 않는다. 사용자에게 "하드웨어로 보호된다"고 표시해 놓고 실제로는
+     * 소프트웨어였다면, 그것은 잘못된 안심을 주는 것이다.
+     */
     private fun detectProtection(store: KeyStore): Protection {
-        // 정확한 판정은 KeyInfo가 필요하나, 표시 목적이므로 보수적으로 TEE로 본다.
-        return if (store.containsAlias(ALIAS)) Protection.TEE else Protection.SOFTWARE
+        return try {
+            val key = store.getKey(ALIAS, null) as PrivateKey
+            val info = KeyFactory.getInstance(key.algorithm, KEYSTORE)
+                .getKeySpec(key, KeyInfo::class.java)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                when (info.securityLevel) {
+                    KeyProperties.SECURITY_LEVEL_STRONGBOX -> Protection.STRONGBOX
+                    KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> Protection.TEE
+                    else -> Protection.SOFTWARE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                if (info.isInsideSecureHardware) Protection.TEE else Protection.SOFTWARE
+            }
+        } catch (_: Exception) {
+            // 판정에 실패하면 보호받는다고 주장하지 않는다.
+            Protection.SOFTWARE
+        }
     }
 
     /**

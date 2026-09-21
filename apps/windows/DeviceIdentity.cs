@@ -68,21 +68,36 @@ public static class DeviceIdentity
         }
     }
 
+    /// <summary>
+    /// 키를 찾거나 만들 제공자. 순서가 곧 우선순위다.
+    ///
+    /// 조회도 이 순서로 하므로, 두 제공자에 같은 이름이 있으면 하드웨어를 택한다.
+    /// </summary>
+    private static readonly CngProvider[] Providers =
+    {
+        CngProvider.MicrosoftPlatformCryptoProvider,      // TPM
+        CngProvider.MicrosoftSoftwareKeyStorageProvider,  // 폴백
+    };
+
     private static (CngKey Key, Protection Protection) OpenOrCreateKey()
     {
-        if (CngKey.Exists(KeyName))
+        // 1) 기존 키를 **모든 제공자에서** 찾는다.
+        //
+        // CngKey.Exists(name) 기본 오버로드는 소프트웨어 KSP만 검사한다.
+        // 이걸 쓰면 TPM에 있는 키를 못 찾아 새로 만들려 하고, TPM에는 같은
+        // 이름이 이미 있어 생성이 실패하며, 결국 소프트웨어 제공자에 다른
+        // 키가 만들어져 재실행마다 DID가 바뀐다. 제공자를 명시해야 한다.
+        foreach (var provider in Providers)
         {
-            var existing = CngKey.Open(KeyName);
-            return (existing, DetectProtection(existing));
+            if (CngKey.Exists(KeyName, provider))
+            {
+                return (CngKey.Open(KeyName, provider), ProtectionOf(provider));
+            }
         }
 
-        // 하드웨어 제공자를 먼저 시도한다. TPM이 없는 기기가 많으므로
-        // 실패는 정상 경로이며, 소프트웨어 KSP로 내려앉는다.
-        foreach (var (provider, protection) in new[]
-                 {
-                     (CngProvider.MicrosoftPlatformCryptoProvider, Protection.Hardware),
-                     (CngProvider.MicrosoftSoftwareKeyStorageProvider, Protection.Software),
-                 })
+        // 2) 없으면 생성한다. 하드웨어를 먼저 시도하고, TPM이 없는 기기에서는
+        //    소프트웨어로 내려앉는다.
+        foreach (var provider in Providers)
         {
             try
             {
@@ -95,19 +110,21 @@ public static class DeviceIdentity
                     ExportPolicy = CngExportPolicies.None,
                     KeyUsage = CngKeyUsages.Signing,
                 };
-                return (CngKey.Create(CngAlgorithm.ECDsaP256, KeyName, parameters), protection);
+                return (CngKey.Create(CngAlgorithm.ECDsaP256, KeyName, parameters), ProtectionOf(provider));
             }
             catch (CryptographicException)
             {
-                // 다음 제공자로 넘어간다.
+                // 제공자 미지원 등. 다음 제공자로 넘어간다.
+                // 1단계에서 이미 조회했으므로 "이미 존재"로 여기 오지는 않는다.
             }
         }
 
         throw new InvalidOperationException("기기 신원 키를 생성할 수 없습니다.");
     }
 
-    private static Protection DetectProtection(CngKey key) =>
-        key.Provider == CngProvider.MicrosoftPlatformCryptoProvider
+    private static Protection ProtectionOf(CngProvider provider) =>
+        provider == CngProvider.MicrosoftPlatformCryptoProvider
             ? Protection.Hardware
             : Protection.Software;
+
 }
