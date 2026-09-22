@@ -37,6 +37,14 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         StartupLog.Write("MainWindow InitializeComponent 완료");
 
+        // 처음 여는 사람이 내용을 다 보려면 어느 정도 높이가 필요하다.
+        // 작은 창으로 열리면 입력 칸이 잘려 무엇을 해야 할지 알기 어렵다.
+        try { AppWindow.Resize(new global::Windows.Graphics.SizeInt32(980, 1000)); }
+        catch { /* 창 크기 지정 실패가 실행을 막아서는 안 된다 */ }
+
+        HintText.Text = "글은 한 번 올리면 수정하거나 지울 수 없습니다. " +
+                        "누구도 기록을 바꿀 수 없게 만든 공론장이기 때문입니다.";
+
         ShowCore();
         ShowIdentity();
         OpenStore();
@@ -57,13 +65,15 @@ public sealed partial class MainWindow : Window
             StartupLog.Write("코어 호출 시도");
             var info = CivicagoraMethods.CoreInfo();
             StartupLog.Write("코어 호출 성공", info.version);
-            CoreText.Text = $"{info.version} · 명세 rev {info.specRevision} · " +
-                            $"{info.target} · {(info.debug ? "debug" : "release")}";
+            CoreText.Text = $"CivicAgora {info.version} (Windows 64비트)";
         }
         catch (Exception ex)
         {
             StartupLog.WriteException("코어 호출", ex);
-            CoreText.Text = $"코어를 불러오지 못했습니다 — {ex.GetType().Name}: {ex.Message}";
+            CoreText.Text = "프로그램 구성 요소를 불러오지 못했습니다.";
+            ShowNotice("프로그램을 여는 데 문제가 있습니다",
+                       $"{ex.Message}\n\n압축을 푼 폴더 전체를 그대로 두고 실행해 주세요.",
+                       InfoBarSeverity.Error);
         }
     }
 
@@ -77,14 +87,17 @@ public sealed partial class MainWindow : Window
             _authorDid = identity.Did;
             DidText.Text = identity.Did;
             ProtectionText.Text = identity.Protection == DeviceIdentity.Protection.Hardware
-                ? "하드웨어 (TPM)"
-                : "소프트웨어 KSP — 내보내기 차단";
+                ? "이 컴퓨터의 보안 칩(TPM)에 보관 — 가장 안전합니다"
+                : "Windows 보안 저장소에 보관 — 꺼내갈 수 없습니다";
         }
         catch (Exception ex)
         {
             StartupLog.WriteException("신원 생성", ex);
-            DidText.Text = "신원 생성 실패";
+            DidText.Text = "만들지 못했습니다";
             ProtectionText.Text = ex.Message;
+            ShowNotice("시민 ID를 만들지 못했습니다",
+                       "의견을 쓰려면 시민 ID가 필요합니다. " + ex.Message,
+                       InfoBarSeverity.Error);
         }
     }
 
@@ -103,7 +116,9 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             StartupLog.WriteException("저장소 열기", ex);
-            ErrorText.Text = $"저장소를 열지 못했습니다 — {ex.GetType().Name}: {ex.Message}";
+            ShowNotice("저장 공간을 열지 못했습니다",
+                       $"작성한 의견을 저장할 수 없습니다. {ex.Message}",
+                       InfoBarSeverity.Error);
         }
     }
 
@@ -153,7 +168,7 @@ public sealed partial class MainWindow : Window
         try
         {
             _store.Add(draft, _authorDid, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-            ErrorText.Text = string.Empty;
+            ErrorText.Visibility = Visibility.Collapsed;
             // 제출 후 초기화. 스탠스는 유지한다 — 같은 입장으로 연달아 쓰는
             // 경우가 많다.
             ProblemBox.Text = EvidenceBox.Text = UrlBox.Text = SolutionBox.Text = string.Empty;
@@ -161,9 +176,10 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            // 검증 실패 이유를 그대로 보여준다. 코어가 어느 필드가 몇 자
+            // 검증 실패 이유를 그대로 보여준다. 코어가 어느 칸이 몇 자
             // 넘었는지까지 알려주므로 가공하지 않는다.
             ErrorText.Text = ex.Message;
+            ErrorText.Visibility = Visibility.Visible;
         }
     }
 
@@ -180,11 +196,12 @@ public sealed partial class MainWindow : Window
         try
         {
             var cards = _store.List();
-            ListHeader.Text = $"등록된 의견 {cards.Count}건";
+            ListHeader.Text = cards.Count == 0 ? "등록된 의견" : $"등록된 의견 {cards.Count}건";
             CardsPanel.Children.Clear();
             if (cards.Count == 0)
             {
-                CardsPanel.Children.Add(Caption("아직 등록된 의견이 없습니다."));
+                CardsPanel.Children.Add(Caption(
+                    "아직 등록된 의견이 없습니다. 위에서 첫 의견을 남겨보세요."));
                 return;
             }
             foreach (var card in cards)
@@ -194,7 +211,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ErrorText.Text = $"목록을 읽지 못했습니다 — {ex.Message}";
+            ShowNotice("의견 목록을 읽지 못했습니다", ex.Message, InfoBarSeverity.Error);
         }
     }
 
@@ -219,7 +236,7 @@ public sealed partial class MainWindow : Window
             Foreground = new SolidColorBrush(Colors.SteelBlue),
         });
         body.Children.Add(Section("해결책", card.actionableSolution));
-        // 필명 체계는 VS-C3에서 붙는다. 그때까지는 DID 앞부분만 보인다.
+        // 필명 체계는 VS-C3에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
         body.Children.Add(Caption($"작성자 {Shorten(card.authorDid)}"));
 
         return new Border
@@ -277,4 +294,19 @@ public sealed partial class MainWindow : Window
 
     private static string Shorten(string did) =>
         did.Length <= 26 ? did : did[..26] + "…";
+
+    /// <summary>
+    /// 문제를 화면 위쪽에 눈에 띄게 알린다.
+    ///
+    /// 예외 종류 같은 개발자용 문자열 대신 무엇이 안 되는지와 무엇을 하면
+    /// 되는지를 적는다. 다만 원인 메시지는 남겨둔다 — 문의가 들어왔을 때
+    /// 그것 없이는 진단할 수 없다.
+    /// </summary>
+    private void ShowNotice(string title, string message, InfoBarSeverity severity)
+    {
+        Notice.Title = title;
+        Notice.Message = message;
+        Notice.Severity = severity;
+        Notice.IsOpen = true;
+    }
 }

@@ -2,86 +2,126 @@
     x:Class="CivicAgora.Windows.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="CivicAgora">
+    Title="CivicAgora — 시민 공론장">
 
-    <ScrollViewer>
-        <StackPanel Padding="28" Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
+    <ScrollViewer Padding="0,0,0,40">
+        <StackPanel Padding="32" Spacing="18" MaxWidth="820" HorizontalAlignment="Center">
 
-            <TextBlock Text="CivicAgora" Style="{StaticResource TitleLargeTextBlockStyle}" />
-            <TextBlock Text="시민 공론장 · 로컬 카드 (VS-A3)" Style="{StaticResource BodyTextBlockStyle}" />
+            <!-- ── 머리말 ───────────────────────────────────────────
+                 처음 여는 사람이 "여기서 무엇을 하는 곳인가"를 바로 알 수
+                 있어야 한다. 기술 용어는 맨 아래 접힌 영역으로 보낸다. -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="CivicAgora" Style="{StaticResource TitleLargeTextBlockStyle}" />
+                <TextBlock Text="정책을 함께 검증하는 시민 공론장"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
 
-            <!-- ── 3단 구조화 입력 ────────────────────────────────────
+            <InfoBar x:Name="Notice" IsOpen="False" IsClosable="False" />
+
+            <!-- ── 의견 쓰기 ─────────────────────────────────────────
                  단일 텍스트 박스를 쓰지 않는 이유는 감정적 선동을 억제하기
-                 위해서다. 세 필드 모두 필수이며 합계 500자다.
+                 위해서다. 세 질문에 답하는 형태로 제시해 무엇을 써야 하는지
+                 스스로 알 수 있게 한다.
                  명세: docs/00_PRODUCT_SPEC.md §3 -->
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="의견 작성" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    BorderThickness="1" CornerRadius="8" Padding="24">
+                <StackPanel Spacing="18">
 
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <RadioButton x:Name="StanceSupport" Content="찬성" GroupName="Stance" IsChecked="True" />
-                        <RadioButton x:Name="StanceAlternative" Content="대안" GroupName="Stance" />
-                        <RadioButton x:Name="StanceOppose" Content="반대" GroupName="Stance" />
+                    <TextBlock Text="의견 쓰기" Style="{StaticResource SubtitleTextBlockStyle}" />
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="어떤 입장이신가요?" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <RadioButton x:Name="StanceSupport" Content="찬성" GroupName="Stance" IsChecked="True" />
+                            <RadioButton x:Name="StanceAlternative" Content="대안 제시" GroupName="Stance" />
+                            <RadioButton x:Name="StanceOppose" Content="반대" GroupName="Stance" />
+                        </StackPanel>
                     </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Text="1. 문제 정의" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBox x:Name="ProblemBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
-                        <TextBlock x:Name="ProblemCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <StackPanel Spacing="4">
+                        <Grid>
+                            <TextBlock Text="① 무엇이 문제인가요?" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock x:Name="ProblemCount" HorizontalAlignment="Right"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                        </Grid>
+                        <TextBox x:Name="ProblemBox" TextWrapping="Wrap" AcceptsReturn="True" Height="76"
+                                 PlaceholderText="예) 현행 제도가 모든 업종에 똑같이 적용되어 소상공인에게 과도한 행정 부담을 줍니다." />
                     </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Text="2. 데이터 및 팩트 근거" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBox x:Name="EvidenceBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
-                        <TextBlock x:Name="EvidenceCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <StackPanel Spacing="4">
+                        <Grid>
+                            <TextBlock Text="② 어떤 근거가 있나요?" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock x:Name="EvidenceCount" HorizontalAlignment="Right"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                        </Grid>
+                        <TextBox x:Name="EvidenceBox" TextWrapping="Wrap" AcceptsReturn="True" Height="76"
+                                 PlaceholderText="예) 통계청 2026년 사업체노동력조사에서 5인 미만 사업장의 행정 부담이 가장 높게 나타났습니다." />
                     </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Text="출처 URL (필수)" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="근거 자료의 출처 링크" Style="{StaticResource BodyStrongTextBlockStyle}" />
                         <TextBox x:Name="UrlBox" PlaceholderText="https://kostat.go.kr/..." />
+                        <TextBlock Text="통계청, 정부 고시, 국회 의안, 학술 논문 같은 1차 자료를 권합니다."
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Text="3. 실행 가능한 해결책" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBox x:Name="SolutionBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
-                        <TextBlock x:Name="SolutionCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <StackPanel Spacing="4">
+                        <Grid>
+                            <TextBlock Text="③ 어떻게 해결하면 좋을까요?" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock x:Name="SolutionCount" HorizontalAlignment="Right"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                        </Grid>
+                        <TextBox x:Name="SolutionBox" TextWrapping="Wrap" AcceptsReturn="True" Height="76"
+                                 PlaceholderText="예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다." />
+                        <TextBlock Text="&quot;폐지하라&quot;처럼 요구만 적기보다, 어떻게 바꿀지 적어주세요."
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
 
-                    <Button x:Name="SubmitButton" Content="등록" Click="OnSubmit" IsEnabled="False" />
+                    <Button x:Name="SubmitButton" Content="의견 등록하기" Click="OnSubmit"
+                            IsEnabled="False" HorizontalAlignment="Stretch"
+                            Style="{StaticResource AccentButtonStyle}" />
 
-                    <TextBlock Text="등록한 글은 수정하거나 지울 수 없습니다."
-                               Style="{StaticResource CaptionTextBlockStyle}" />
-                    <TextBlock x:Name="ErrorText" Foreground="Crimson" TextWrapping="Wrap" />
+                    <TextBlock x:Name="HintText" TextWrapping="Wrap"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <TextBlock x:Name="ErrorText" Foreground="Crimson" TextWrapping="Wrap" Visibility="Collapsed" />
                 </StackPanel>
             </Border>
 
-            <!-- ── 카드 목록 ──────────────────────────────────────────
-                 최신순이다. 브리징 점수순은 VS-F3, 3열 배치는 VS-D1에서.
-                 삭제 버튼이 없다 (G-IMMUT). -->
-            <TextBlock x:Name="ListHeader" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <!-- ── 등록된 의견 ───────────────────────────────────── -->
+            <TextBlock x:Name="ListHeader" Style="{StaticResource SubtitleTextBlockStyle}" />
             <StackPanel x:Name="CardsPanel" Spacing="10" />
 
-            <!-- ── 신원 및 코어 ───────────────────────────────────── -->
-            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,8,0,0">
-                <StackPanel Spacing="10">
-                    <StackPanel>
-                        <TextBlock Text="내 DID" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="DidText" TextWrapping="Wrap" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <!-- ── 내 정보 (기본 접힘) ───────────────────────────────
+                 DID와 빌드 정보는 일반 사용자에게 의미가 없다. 필요한 사람만
+                 펼쳐 보도록 숨긴다. -->
+            <Expander x:Name="DetailsExpander" Header="내 정보와 프로그램 정보"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Spacing="12" Padding="0,8,0,4">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="내 시민 ID" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="DidText" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                   FontFamily="Consolas" FontSize="12" />
+                        <TextBlock Text="이 기기에서만 만들어진 익명 식별자입니다. 실명과 이메일은 저장되지 않습니다."
+                                   Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="키 보호" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="ProtectionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="열쇠 보관 방식" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="ProtectionText" TextWrapping="Wrap" />
                     </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="코어" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="CoreText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="프로그램" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="CoreText" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </StackPanel>
-            </Border>
+            </Expander>
 
         </StackPanel>
     </ScrollViewer>
