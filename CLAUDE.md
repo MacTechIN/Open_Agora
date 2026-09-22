@@ -69,6 +69,7 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
 | `web/scripts/check-write-gate.mjs` | 인증 없는 쓰기 경로 |
 | `web/scripts/check-client-imports.mjs` | DB 모듈이 브라우저 번들로 끌려가는 것 |
 | `web/scripts/check-signing.mjs` | 서명 대상 바이트·식별자 규칙이 코어와 갈리는 것 |
+| `web/scripts/check-anchor.mjs` | 앵커링 머클 형식이 코어와 갈리는 것 |
 
 ### 이 저장소에서 지켜야 하는 것
 
@@ -76,10 +77,13 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
 * **HTTP 전송은 각 플랫폼이 합니다.** 코어는 본문 생성과 파싱만 합니다
   (`core/src/api.rs`). 플랫폼이 각자 JSON을 조립하면 필드가 어긋나고, 그 버그는
   서버 로그에서만 보입니다.
-* **서명 형식과 식별자 규칙은 코어와 서버가 같아야 합니다.**
-  `core/src/signing.rs` 와 `web/lib/signing.ts` 가 같은 바이트를 만들어야 하고,
-  `contracts/signing-vectors.json` 이 그것을 양쪽에서 대조합니다. 벡터 파일은
-  손으로 고치지 않습니다 — 고치면 구현이 아니라 기댓값을 맞추게 됩니다.
+* **서명·머클 형식과 식별자 규칙은 코어와 서버가 같아야 합니다.**
+  `core/src/{signing,merkle}.rs` 와 `web/lib/{signing,merkle}.ts` 가 같은
+  바이트를 만들어야 하고, `contracts/{signing,anchor}-vectors.json` 이 그것을
+  양쪽에서 대조합니다. 벡터 파일은 손으로 고치지 않습니다 — 고치면 구현이
+  아니라 기댓값을 맞추게 됩니다.
+* **검증 경로를 숨기지 않습니다.** 앵커 잎 목록과 영수증은 공개합니다.
+  확인 방법을 감추면 앵커링은 또 하나의 "믿어 주세요"가 됩니다.
 * **표시 규칙은 네 곳이 같아야 합니다.** 정렬·분류·균형 판정이
   `web/lib/plaza-view.ts`, `apps/windows/MainWindow.xaml.cs`,
   `apps/android/.../Plaza.kt`, `apps/ios/.../Plaza.swift`에 같은 값으로 있습니다.

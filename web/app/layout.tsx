@@ -17,7 +17,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <h1><a href="/" style={{ color: "inherit" }}>CivicAgora</a></h1>
                 <p>정책을 함께 검증하는 시민 공론장</p>
               </div>
-              <a href="/register" className="muted" style={{ whiteSpace: "nowrap" }}>시민 인증</a>
+              <div style={{ display: "flex", gap: 14, whiteSpace: "nowrap" }}>
+                {/* 앵커 기록을 찾을 수 있어야 한다. 확인 경로를 숨기면
+                    앵커링은 또 하나의 "믿어 주세요"가 된다. */}
+                <a href="/anchors" className="muted">앵커 기록</a>
+                <a href="/register" className="muted">시민 인증</a>
+              </div>
             </div>
           </header>
           {children}

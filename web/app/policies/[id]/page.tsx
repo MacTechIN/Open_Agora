@@ -4,6 +4,8 @@ import { migrate, sql } from "@/lib/db";
 import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance } from "@/lib/types";
 import AddOpinion from "./AddOpinion";
 import SignatureBadge from "@/components/SignatureBadge";
+import AnchorNotice from "@/components/AnchorNotice";
+import { proofFor } from "@/lib/anchor";
 import { checkSignature } from "@/lib/verify.ts";
 import { opinionPayload, policyPayload } from "@/lib/signing.ts";
 
@@ -19,6 +21,8 @@ async function load(id: string) {
   return {
     policy: policy as unknown as Policy,
     opinions: opinions as unknown as DebateCard[],
+    // 앵커 증명. 아직 배치에 들어가지 않았으면 null 이다.
+    anchor: await proofFor("policy", id),
   };
 }
 
@@ -65,7 +69,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions } = data;
+  const { policy, opinions, anchor } = data;
 
   return (
     <>
@@ -102,6 +106,8 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
             {policy.official_source_url}
           </a>
         </div>
+
+        <AnchorNotice proof={anchor} />
       </div>
 
       {/* 3열. 좌우 폭이 같아야 한다 — 어느 쪽도 시각적으로 우대하지 않는다.

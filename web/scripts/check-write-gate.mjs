@@ -25,6 +25,17 @@ function walk(dir, out = []) {
 // 인증 경로 자체는 회원이 아닌 사람이 쓰는 곳이므로 제외한다.
 const EXEMPT = ["app/api/auth/"];
 
+/**
+ * 사용자 글이 아니라 **운영이 부르는** 쓰기 경로.
+ *
+ * 회원 확인 대신 비밀값으로 잠근다. 통째로 면제하지 않고 어떤 비밀값을 써야
+ * 하는지까지 적는 이유는, 잠그지 않은 운영 경로도 여기 적기만 하면 통과하는
+ * 일을 막기 위해서다.
+ */
+const OPERATOR = {
+  "app/api/anchor/build/route.ts": "ANCHOR_SECRET",
+};
+
 let failed = 0;
 for (const file of walk(apiDir)) {
   const rel = relative(root, file).replace(/\\/g, "/");
@@ -33,6 +44,17 @@ for (const file of walk(apiDir)) {
   const source = readFileSync(file, "utf8");
   const writes = /export\s+async\s+function\s+(POST|PUT|PATCH)\b/.test(source);
   if (!writes) continue;
+
+  const secret = OPERATOR[rel];
+  if (secret) {
+    if (source.includes(secret)) {
+      console.log(`  OK   ${rel}  (운영 경로 — ${secret} 로 잠김)`);
+    } else {
+      console.error(`  FAIL ${rel}  운영 경로인데 ${secret} 확인이 없습니다`);
+      failed += 1;
+    }
+    continue;
+  }
 
   if (!source.includes("isMember")) {
     console.error(`  FAIL ${rel}  쓰기 경로에 회원 확인(isMember)이 없습니다`);

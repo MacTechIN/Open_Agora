@@ -1,0 +1,42 @@
+{
+  "note": [
+    "앵커링 머클 트리(VS-F6)의 공용 시험 벡터.",
+    "코어(Rust)와 서버(TypeScript)가 같은 루트를 만드는지 양쪽에서 확인한다.",
+    "이 파일은 core/src/merkle.rs 가 만든 것이다. 손으로 고치지 않는다.",
+    "잎 = SHA-256(0x00 ‖ 바이트), 내부 = SHA-256(0x01 ‖ 왼쪽 ‖ 오른쪽). RFC 6962 방식.",
+    "홀수로 남는 노드는 복제하지 않고 그대로 올린다 (CVE-2012-2459 회피).",
+    "leaves_n 은 i 번째 잎이 leaf(바이트 [i]) 인 목록을 뜻한다."
+  ],
+  "leaf": {
+    "input_utf8": "abc",
+    "hash": "609f6e36d2405585188d5cfd761f407c7cc46a7d3f314c88270469dde315fcd1"
+  },
+  "roots": {
+    "1": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+    "2": "a20bf9a7cc2dc8a08f5f415a71b19f6ac427bab54d24eec868b5d3103449953a",
+    "3": "3b6cccd7e3e023ff393006f030315ee7ad9eb111b022b41fba7e5b7a3973f688",
+    "4": "9bcd51240af4005168f033121ba85be5a6ed4f0e6a5fac262066729b8fbfdecb",
+    "5": "b855b42d6c30f5b087e05266783fbd6e394f7b926013ccaa67700a8b0c5a596f",
+    "7": "3560191803028444b232018ac047fdb561c09c23a7a6876c85e08b5e4d48e9f3",
+    "8": "ef7f49b620f6c7ea9b963a214da34b5021c6ded8ed57734380a311ab726aa907",
+    "9": "162a21c2230e0284ea38cb8739ee4bb75947a1acd5d529c638ec068969fb3c4a"
+  },
+  "proof": {
+    "leaf_count": 5,
+    "index": 3,
+    "steps": [
+      {
+        "hash": "fcf0a6c700dd13e274b6fba8deea8dd9b26e4eedde3495717cac8408c9c5177f",
+        "sibling_is_left": true
+      },
+      {
+        "hash": "a20bf9a7cc2dc8a08f5f415a71b19f6ac427bab54d24eec868b5d3103449953a",
+        "sibling_is_left": true
+      },
+      {
+        "hash": "4f35212d12f9ad2036492c95f1fe79baf4ec7bd9bef3dffa7579f2293ff546a4",
+        "sibling_is_left": false
+      }
+    ]
+  }
+}

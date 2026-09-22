@@ -86,6 +86,11 @@ jobs:
       - name: 서명 형식 대조
         working-directory: web
         run: npm run check:signing
+      # 머클 트리도 코어와 서버 두 곳에 있다. 한쪽만 고치면 서버가 만든
+      # 증명이 앱에서 통과하지 않고, 원인이 접두사 한 바이트인 경우가 많다.
+      - name: 머클 형식 대조
+        working-directory: web
+        run: npm run check:anchor
       # 새 쓰기 경로에 회원 확인을 빠뜨리면 아무나 글을 쓸 수 있게 되는데,
       # 겉보기에는 정상 동작하므로 알아채기 어렵다.
       - name: 글쓰기 회원 확인 검사

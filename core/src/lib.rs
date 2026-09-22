@@ -21,6 +21,7 @@ mod api;
 mod card;
 mod identity;
 mod info;
+mod merkle;
 mod policy;
 mod signing;
 mod store;
@@ -29,6 +30,7 @@ pub use api::{add_opinion_body, open_policy_body, parse_id, parse_opinions, pars
 pub use card::{grapheme_count, CardError, DebateCard, DraftCard, StanceType};
 pub use identity::{did_from_public_key, public_key_from_did, verify_signature, IdentityError};
 pub use info::{core_info, CoreInfo, SPEC_REVISION};
+pub use merkle::{merkle_apply, merkle_proof, merkle_root, opinion_leaf, policy_leaf, MerkleStep};
 pub use policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
 pub use signing::{
     check_opinion, check_policy, opinion_signing_payload, policy_id, policy_signing_payload,
