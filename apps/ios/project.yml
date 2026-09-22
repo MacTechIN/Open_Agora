@@ -1,0 +1,46 @@
+# XcodeGen 명세.
+#
+# .xcodeproj 를 커밋하지 않는 이유는 그것이 병합 불가능한 파일이기 때문이다.
+# 두 사람이 각자 파일을 추가하면 충돌이 나고, 충돌을 손으로 풀다 보면 프로젝트
+# 파일이 조용히 망가진다. 명세만 커밋하고 프로젝트는 생성한다.
+#
+#   brew install xcodegen && xcodegen generate
+name: CivicAgora
+options:
+  bundleIdPrefix: org.civicagora
+  deploymentTarget:
+    # Secure Enclave·SwiftUI 요구. Android 의 minSdk 26 과 같은 자리다.
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # 생성된 헤더의 모듈맵을 찾는 경로
+    SWIFT_INCLUDE_PATHS: $(SRCROOT)/Generated/headers
+
+targets:
+  CivicAgora:
+    type: application
+    platform: iOS
+    sources:
+      - path: CivicAgora
+      # 생성된 uniffi 바인딩. build-core.sh 를 먼저 돌려야 한다.
+      - path: Generated/civicagora.swift
+        optional: true
+    dependencies:
+      - framework: Generated/CivicAgoraCore.xcframework
+        embed: false
+    info:
+      path: CivicAgora/Info.plist
+      properties:
+        CFBundleDisplayName: 시민 공론장
+        UILaunchScreen: {}
+        # ATS 예외를 두지 않는다. 공론장은 HTTPS 로만 연결한다.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.civicagora.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"

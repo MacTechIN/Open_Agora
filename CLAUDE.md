@@ -4,12 +4,86 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 저장소 현재 상태
 
-**코드가 없습니다.** 현재는 명세만 존재하는 설계 단계입니다. 빌드/린트/테스트 명령이 아직 없으므로, 스캐폴딩을 시작할 때 이 섹션을 실제 명령으로 교체해야 합니다.
+**구현이 진행 중입니다.** 현재 상황은 `docs/17_STATUS.md`에 있습니다 — 계획이
+아니라 실측이므로, 계획 문서와 어긋나면 그쪽이 사실입니다.
 
-* **`docs/` — 단일 진실 공급원.** 검증을 거쳐 확정된 명세입니다. 항상 이쪽을 따릅니다.
-* **`ref_docs/` — 아카이브(비권위).** 초기 문서로, 서로 상충하는 내용을 담고 있습니다. 수정하지 말고 근거 추적 용도로만 참조합니다.
+주제를 올리고 세 입장으로 의견을 다는 공론장이 웹·Windows·Android에서 같은
+데이터로 동작합니다. 브리징·톤 코칭·블록체인은 아직 없습니다.
 
-두 폴더가 어긋나면 언제나 `docs/`가 우선합니다. `docs/08_DECISIONS.md`에 무엇이 왜 바뀌었는지 14건의 확정 기록이 있습니다. **`docs/`를 읽고 작업하려 한다면 먼저 그 문서를 보십시오.**
+### 저장소 배치
+
+```
+core/          공유 Rust 코어. civicagora.udl 이 유일한 인터페이스 정의
+web/           Next.js 15 광장 (open-agora.vercel.app)
+apps/windows/  WinUI 3 / .NET 8
+apps/android/  Jetpack Compose / Kotlin
+apps/ios/      SwiftUI. 뼈대만 — 맥에서만 빌드되고 아직 컴파일된 적 없음
+contracts/     한도·검증 픽스처·API 샘플. 코어와 웹이 공유하는 계약
+scripts/       불변식 게이트
+docs/          단일 진실 공급원
+ref_docs/      아카이브(비권위). 수정하지 않음
+```
+
+### 명령
+
+```bash
+# 코어
+cargo test -p civicagora-core              # 전체 (현재 64개)
+cargo test -p civicagora-core card::        # 모듈 하나
+cargo test -p civicagora-core -- --nocapture 검증할_테스트_이름
+cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings
+
+# 게이트 — 커밋 전에 돌립니다
+./scripts/check-binding-parity.sh          # G-PARITY
+./scripts/check-immutability.sh            # G-IMMUT
+
+# 웹
+cd web && npm ci && npm run dev
+npm run check                              # 계약·중첩·쓰기게이트·import 4종
+npm run build
+
+# Windows (윈도우에서만)
+pwsh scripts/build-windows.ps1
+
+# Android
+cd apps/android && ./gradlew assembleDebug
+
+# iOS (맥에서만)
+cd apps/ios && make bootstrap && make open
+```
+
+CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다. main에
+푸시하면 `dev` 프리릴리스의 Windows zip과 Android APK가 갱신됩니다.
+
+### 기계 게이트
+
+리뷰로 보이지 않는 종류의 버그만 게이트로 막습니다. 전부 실제로 당한 것에서
+나왔습니다.
+
+| 스크립트 | 막는 것 |
+|-|-|
+| `scripts/check-binding-parity.sh` | Kotlin·C# 바인딩이 갈라지는 것 |
+| `scripts/check-immutability.sh` | 삭제 경로가 생기는 것 |
+| `web/scripts/check-contract.mjs` | 웹의 한도가 코어와 어긋나는 것 |
+| `web/scripts/check-nested-components.mjs` | 한글 IME가 깨지는 렌더 패턴 |
+| `web/scripts/check-write-gate.mjs` | 인증 없는 쓰기 경로 |
+| `web/scripts/check-client-imports.mjs` | DB 모듈이 브라우저 번들로 끌려가는 것 |
+
+### 이 저장소에서 지켜야 하는 것
+
+* **바인딩을 손으로 쓰지 않습니다.** `core/src/civicagora.udl`을 고치고 재생성합니다.
+* **HTTP 전송은 각 플랫폼이 합니다.** 코어는 본문 생성과 파싱만 합니다
+  (`core/src/api.rs`). 플랫폼이 각자 JSON을 조립하면 필드가 어긋나고, 그 버그는
+  서버 로그에서만 보입니다.
+* **표시 규칙은 네 곳이 같아야 합니다.** 정렬·분류·균형 판정이
+  `web/lib/plaza-view.ts`, `apps/windows/MainWindow.xaml.cs`,
+  `apps/android/.../Plaza.kt`, `apps/ios/.../Plaza.swift`에 같은 값으로 있습니다.
+  한 곳만 고치면 같은 주제가 기기마다 다르게 보입니다.
+* **비밀값을 대화나 코드에 넣지 않습니다.** `/api/health`는 설정 여부만
+  보고하고 값은 절대 담지 않습니다. 인증코드가 API 응답에 들어가면 남의
+  이메일로 가입할 수 있게 됩니다.
+* **`AUTH_SECRET`은 한 번 정하면 바꾸지 않습니다.** 바꾸면 이메일 해시의
+  유일성이 깨져 같은 사람이 다시 가입할 수 있게 됩니다.
 
 ## 프로젝트 개요
 
@@ -87,7 +161,7 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 | `docs/05_CLIENT_APPS.md` | 네이티브 앱 구조, 공유 Rust 코어, 플랫폼별 제약 |
 | `docs/06_GOV_BRIEF_API.md` | 대정부 브리프 양식, 연구자 오픈 API·익명화 |
 | `docs/07_ROADMAP.md` | 6단계 24주 로드맵 |
-| `docs/08_DECISIONS.md` | **확정 결정 14건의 증거와 근거. 미결 사항 6건** |
+| `docs/08_DECISIONS.md` | **결정 19건의 증거와 근거.** D19는 임시 결정. 미결 사항 별도 |
 | `docs/09_DEVELOPMENT_PLAN.md` | **개발 작업 단위.** 38개 수직 슬라이스, 의존 그래프, 불변식 게이트 |
 | `docs/10_AI_JUDGMENTS.md` | AI 판단의 구조화 결정 설계, 상용 API와의 비교 |
 | `docs/11_SOVEREIGN_JUDGMENT.md` | **주권 판단 계층.** 제약 채점·정본 재현·모델 앵커링·G-BIAS |
@@ -96,27 +170,41 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 | `docs/14_USER_JOURNEY.md` | 주제 등록부터 보고서 다운로드까지 전 과정 |
 | `docs/15_BRIDGE_SERVER.md` | 현재 공유 서버 단계의 한계와 벗어나는 순서 |
 | `docs/16_ONCHAIN_PLAN.md` | **블록체인 도입 단계·비용.** 서명 → 앵커링 → 1인1계정 → P2P |
+| `docs/17_STATUS.md` | **현재 개발 상황.** 무엇이 돌고 무엇이 없는지의 실측 |
 
-## 목표 스택 (아직 미설치)
+## 스택
 
-| 영역 | 스택 |
-|-|-|
-| Windows 앱 | WinUI 3 / Windows App SDK, C# .NET 8, MSIX |
-| Android 앱 | Jetpack Compose, Kotlin, AAB + APK 직배포 |
-| 공유 코어 | Rust — rust-libp2p, rapidsnark, SQLite, ONNX Runtime, `uniffi-rs` 바인딩 |
-| P2P | Ceramic ComposeDB, IPFS, libp2p (QUIC/TCP, AutoNAT, DCUtR) |
-| AI 서빙 | Python FastAPI + vLLM |
-| ZK | Circom 회로 |
-| 온체인 | Solidity ^0.8.24, EVM L2, Foundry |
-| 웹(읽기 전용) | Next.js 15 App Router + Tailwind |
+| 영역 | 스택 | 상태 |
+|-|-|-|
+| 공유 코어 | Rust — rusqlite, p256, unicode-segmentation, `uniffi-rs` 0.28.3 | 사용 중 |
+| Windows 앱 | WinUI 3 / Windows App SDK 1.6, C# .NET 8, 언패키지 자체 포함 | 사용 중 |
+| Android 앱 | Jetpack Compose, Kotlin 2.0.21, minSdk 26, APK 직배포 | 사용 중 |
+| iOS 앱 | SwiftUI, iOS 16+, Secure Enclave, XcodeGen | 뼈대만 |
+| 웹 | Next.js 15 App Router + Postgres(Neon), Vercel | 사용 중 |
+| P2P | libp2p, IPFS, Ceramic One | 미착수 — ComposeDB 중단으로 재선정 |
+| AI 서빙 | Python FastAPI + vLLM | 미착수 |
+| ZK | Circom 회로, Semaphore | 미착수 |
+| 온체인 | Solidity ^0.8.24, EVM L2, Foundry | 미착수 — 체인 미선정 |
 
 웹뷰 래퍼(Electron·Tauri)는 네이티브 요구에 부합하지 않아 제외되었습니다.
+MSIX 패키징도 지금은 쓰지 않습니다 — 서명 인증서 없이 받는 사람이 설치할 수
+있어야 해서 언패키지 자체 포함으로 냅니다.
 
-**바인딩은 손으로 쓰지 마십시오.** 코어 인터페이스는 `civicagora.udl`에 한 번만 정의하고 `uniffi-rs`로 Kotlin·C# 바인딩을 생성합니다. 수작업 FFI 래퍼는 두 플랫폼이 어긋나는 가장 흔한 원인입니다.
+**바인딩은 손으로 쓰지 마십시오.** 코어 인터페이스는 `core/src/civicagora.udl`에
+한 번만 정의하고 `uniffi-rs`로 Kotlin·C#·Swift 바인딩을 생성합니다. 수작업 FFI
+래퍼는 플랫폼이 어긋나는 가장 흔한 원인입니다.
+
+C# 바인딩은 `uniffi-bindgen-cs`를 쓰며, **태그를 uniffi 버전에 맞춰 고정**합니다
+(`v0.9.2+v0.28.3`). 맞추지 않으면 생성된 코드가 런타임에 터집니다.
 
 ## 구현 전 확인이 필요한 미결 사항
 
-`docs/08_DECISIONS.md` 말미에 6건이 있습니다. 대표적으로 웹에서의 글 작성 허용 여부(Phase 3 전), 성향 자기 신고 수집 여부(Phase 1 전), L2 체인 선택, Windows UI 언어(C# vs C++/WinRT)입니다. 해당 영역을 건드릴 때 임의로 정하지 말고 확인하십시오.
+`docs/08_DECISIONS.md` 말미에 표로 있습니다. 해당 영역을 건드릴 때 임의로 정하지 말고 확인하십시오. 지금 열려 있는 것 중 무게가 큰 것들:
+
+* **웹에서의 글 작성** — 임시 허용 중(D19). 브라우저에 키를 두므로 네이티브보다 약한 신원이고, 그 차이가 아직 화면에 드러나지 않습니다
+* **L2 체인 선택** — VS-A4 다음 단계에서 필요
+* **허용 이메일 도메인 기준** — DKIM 2048비트를 요구하면 kakao.com·assembly.go.kr이 배제됩니다
+* **성향 자기 신고 수집 여부** — Phase 1 전
 
 ## 문서 편집 시 주의
 

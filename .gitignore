@@ -24,3 +24,9 @@ dist/
 .idea/
 .vs/
 *.user
+
+# iOS — 생성물. project.yml 과 소스만 커밋한다.
+apps/ios/Generated/
+apps/ios/*.xcodeproj/
+apps/ios/*.xcworkspace/
+**/xcuserdata/

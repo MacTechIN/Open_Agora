@@ -2,17 +2,21 @@
 
 ## 1. 확정된 구성
 
-**Windows와 Android 모두 각 플랫폼의 네이티브 UI 프레임워크로 개발하고, 비 UI 로직은 공유 Rust 코어 라이브러리로 통합합니다.**
+**세 플랫폼 모두 각자의 네이티브 UI 프레임워크로 개발하고, 비 UI 로직은 공유 Rust 코어 라이브러리로 통합합니다.**
 
-| 계층 | Windows | Android |
-|-|-|-|
-| UI | **WinUI 3 / Windows App SDK** (C#, .NET 8) | **Jetpack Compose** (Kotlin, Android SDK) |
-| 바인딩 | C FFI → C# `DllImport` (P/Invoke) | C FFI → JNI (`uniffi-rs` 생성) |
-| 코어 | **`civicagora-core` (Rust, `.dll`)** | **`civicagora-core` (Rust, `.so`)** |
-| 보안 저장소 | Windows Hello / DPAPI | Android Keystore (StrongBox 우선) |
-| 배포 | MSIX (Microsoft Store + 사이드로드) | AAB (Google Play + APK 직배포) |
+| 계층 | Windows | Android | iOS |
+|-|-|-|-|
+| UI | **WinUI 3 / Windows App SDK** (C#, .NET 8) | **Jetpack Compose** (Kotlin) | **SwiftUI** (Swift 5.9, iOS 16+) |
+| 바인딩 | C FFI → C# `DllImport` | C FFI → JNI | C FFI → Swift (모듈맵) |
+| 코어 | `civicagora-core` (`.dll`) | `civicagora-core` (`.so`) | `civicagora-core` (`.a`, XCFramework) |
+| 보안 저장소 | Windows CNG — TPM 우선, 내보내기 불가 | Android Keystore — StrongBox 우선 | Secure Enclave |
+| 배포 | 언패키지 자체 포함 zip | APK 직배포 | TestFlight (예정) |
 
 웹뷰를 감싸는 방식(Electron, Tauri 등)은 "네이티브 앱" 요구에 부합하지 않아 채택하지 않았습니다(→ D14).
+
+**배포 방식이 MSIX·AAB에서 바뀐 이유**: 서명 인증서와 스토어 심사 없이 받는 사람이 바로 설치할 수 있어야 했습니다. 스토어 배포는 VS-H5에서 다시 다룹니다.
+
+**iOS는 CI에서 빌드하지 않습니다.** 맥 러너는 리눅스의 10배 단가이고, TestFlight 단계에 가서 붙이는 편이 낫습니다. 그 전까지는 맥에서 손으로 확인합니다. `apps/ios/README.md`에 순서가 있습니다.
 
 ### 1.1 왜 UI는 나누고 코어는 합치는가
 
@@ -20,7 +24,9 @@ UI를 플랫폼별로 나누는 비용은 감수할 만합니다. 반면 **P2P·
 
 공유 코어는 다음을 모두 담당합니다.
 
-* Secp256k1 키 관리, DID 생성, 문서 서명·검증
+* **P-256** 공개키 → DID 생성, 서명 검증 (secp256k1 아님 — D15).
+  개인키는 다루지 않습니다. 키 생성과 서명은 각 플랫폼의 하드웨어 저장소가
+  합니다. 코어가 개인키를 다룰 수 있으면 언젠가 다루게 됩니다
 * ZK 증명 생성 (Circom 회로 + rapidsnark)
 * rust-libp2p 노드 구동 — GossipSub, Kademlia DHT, AutoNAT, DCUtR
 * Ceramic ComposeDB 클라이언트, 스트림 검증
@@ -28,25 +34,35 @@ UI를 플랫폼별로 나누는 비용은 감수할 만합니다. 반면 **P2P·
 * 머클 증명 검증 (온체인 루트 대조)
 * Step 1 온디바이스 유해성 스크리닝 (ONNX Runtime)
 
-UI 계층이 담당하는 것은 화면, 입력, 플랫폼 통합(알림·공유·생체인증)뿐입니다.
+UI 계층이 담당하는 것은 화면, 입력, 플랫폼 통합(알림·공유·생체인증), 그리고 **HTTP 전송**입니다.
+
+전송을 플랫폼에 맡긴 것은 의도된 예외입니다. OS의 프록시·인증서 정책을 그대로 쓰기 위해서이고, Rust에 TLS를 넣으면 그것을 잃고 크로스 컴파일 위험도 커집니다. 대신 **요청 본문 생성과 응답 파싱은 코어가 합니다**(`core/src/api.rs`) — 플랫폼이 각자 JSON을 조립하면 필드가 어긋나고, 그 버그는 서버 로그에서만 보입니다.
 
 ### 1.2 바인딩 생성
 
-코어의 공개 인터페이스는 **UDL(`civicagora.udl`)에 한 번만 정의**하고 `uniffi-rs`로 Kotlin·C# 바인딩을 자동 생성합니다. 손으로 쓴 FFI 래퍼는 두 플랫폼이 어긋나는 가장 흔한 원인이므로 금지합니다.
+코어의 공개 인터페이스는 **UDL(`core/src/civicagora.udl`)에 한 번만 정의**하고 `uniffi-rs`로 Kotlin·C#·Swift 바인딩을 자동 생성합니다. 손으로 쓴 FFI 래퍼는 플랫폼이 어긋나는 가장 흔한 원인이므로 금지합니다.
+
+Kotlin과 Swift는 `uniffi-bindgen`이 직접 만들고, C#은 `uniffi-bindgen-cs`를 씁니다. **C# 쪽은 태그를 uniffi 버전에 맞춰 고정합니다**(`v0.9.2+v0.28.3`) — 맞추지 않으면 생성된 코드가 컴파일은 되고 런타임에 터집니다.
+
+바인딩이 갈라지지 않는지는 `scripts/check-binding-parity.sh`(G-PARITY)가 CI에서 봅니다.
+
+`✓`는 존재하는 것입니다.
 
 ```
-civicagora-core/
-├── src/
-│   ├── identity.rs      # 키·DID·ZK 증명
-│   ├── p2p.rs           # libp2p 노드
-│   ├── store.rs         # Ceramic 클라이언트 + SQLite 캐시
-│   ├── moderation.rs    # Step 1 온디바이스 스크리닝
-│   └── lib.rs
-├── civicagora.udl       # 단일 인터페이스 정의
-└── bindings/
-    ├── kotlin/          # 자동 생성
-    └── csharp/          # 자동 생성
+core/src/
+├── civicagora.udl     ✓ 단일 인터페이스 정의
+├── identity.rs        ✓ P-256 공개키 → DID, 서명 검증
+├── policy.rs          ✓ 주제 모델과 한도
+├── card.rs            ✓ 의견 모델과 한도
+├── store.rs           ✓ SQLite (append-only)
+├── api.rs             ✓ 공유 API 본문 생성·파싱
+├── info.rs            ✓ 빌드 식별 정보
+├── p2p.rs               libp2p 노드
+├── moderation.rs        Step 1 온디바이스 스크리닝
+└── lib.rs             ✓
 ```
+
+바인딩은 저장소에 커밋하지 않고 빌드할 때 생성합니다. 커밋하면 UDL과 어긋난 바인딩이 남을 수 있고, 그것이 정확히 G-PARITY가 막으려는 상태입니다.
 
 ---
 
@@ -133,6 +149,8 @@ Android의 배터리 최적화는 장시간 소켓 연결에 적대적입니다.
 
 기존 로드맵의 Next.js 웹은 **읽기 전용 열람·연구 포털**로 역할을 축소합니다.
 
+> **2026-09-22 현재는 그렇지 않습니다.** 웹에서 회원이 주제와 의견을 올릴 수 있습니다. 임시 결정이며 근거와 되돌리는 길은 `08_DECISIONS.md` D19에 있습니다. 아래는 확정 시 돌아갈 원 설계입니다.
+
 * 검색엔진 색인과 외부 링크 공유(기자·연구자 접근 경로)를 담당합니다.
 * 안건·카드 열람, 여론 지형도, 랭킹, 오픈 데이터 다운로드를 제공합니다.
 * **작성·반응·가입은 제공하지 않습니다.** 이들은 개인키와 P2P 노드를 요구하므로 네이티브 앱에서만 가능합니다.
@@ -141,21 +159,28 @@ Android의 배터리 최적화는 장시간 소켓 연결에 적대적입니다.
 
 ---
 
-## 7. 저장소 구조 (예정)
+## 7. 저장소 구조
+
+`✓`는 존재하는 것, 나머지는 예정입니다. 현황은 `17_STATUS.md`를 보십시오.
 
 ```
 openAgora/
-├── core/                    # Rust 공유 코어 + UDL
+├── core/                  ✓ Rust 공유 코어 + UDL
 ├── apps/
-│   ├── windows/             # WinUI 3 (C#, .NET 8)
-│   └── android/             # Jetpack Compose (Kotlin)
-├── web/                     # Next.js 15 읽기 전용 포털
+│   ├── windows/           ✓ WinUI 3 (C#, .NET 8)
+│   ├── android/           ✓ Jetpack Compose (Kotlin)
+│   └── ios/               ✓ SwiftUI — 뼈대만, 맥에서 빌드
+├── web/                   ✓ Next.js 15 광장 (읽기 전용이 아니라 쓰기까지)
+├── contracts/             ✓ 한도·검증 픽스처·API 샘플 (Solidity 아님)
+├── scripts/               ✓ 불변식 게이트
 ├── services/
-│   ├── moderation/          # FastAPI + vLLM 톤 코칭
-│   ├── bridging/            # 행렬 분해 · Pol.is 배치 잡
-│   └── openapi/             # 연구자 오픈 데이터 API
-├── circuits/                # Circom ZK-Email 회로
-├── contracts/               # Solidity + Foundry
-├── docs/                    # 본 명세서 (단일 진실 공급원)
-└── ref_docs/                # 아카이브 (비권위)
+│   ├── moderation/          FastAPI + vLLM 톤 코칭
+│   ├── bridging/            행렬 분해 · Pol.is 배치 잡
+│   └── openapi/             연구자 오픈 데이터 API
+├── circuits/                Circom ZK-Email 회로
+├── onchain/                 Solidity + Foundry
+├── docs/                  ✓ 본 명세서 (단일 진실 공급원)
+└── ref_docs/              ✓ 아카이브 (비권위)
 ```
+
+**`contracts/`의 뜻이 바뀌었습니다.** 원래 Solidity 자리였으나, 지금은 코어와 웹이 공유하는 *계약*(한도·검증 픽스처·API 샘플)이 들어 있습니다. 온체인 코드가 생기면 `onchain/`에 둡니다.

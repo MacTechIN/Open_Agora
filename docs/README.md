@@ -1,5 +1,8 @@
 # CivicAgora 통합 명세서 (docs)
 
+> **지금 무엇이 돌고 있는지 알고 싶다면 [`17_STATUS.md`](./17_STATUS.md)를 먼저 보십시오.**
+> 아래 문서들은 설계이고, 그 문서는 실측입니다.
+
 이 폴더는 **단일 진실 공급원(Single Source of Truth)** 입니다. 기존 초기 문서들(`ref_docs/`)은 서로 상충하는 내용을 담고 있어 **아카이브(참고용, 비권위)** 로 강등되었습니다. 구현 시 상충이 발견되면 언제나 `docs/`가 우선합니다.
 
 ## 문서 체계
@@ -14,14 +17,16 @@
 | [`05_CLIENT_APPS.md`](./05_CLIENT_APPS.md) | 네이티브 Windows / Android 앱 아키텍처 |
 | [`06_GOV_BRIEF_API.md`](./06_GOV_BRIEF_API.md) | 대정부 합의 브리프, 연구자 오픈 데이터 API |
 | [`07_ROADMAP.md`](./07_ROADMAP.md) | 개정 개발 로드맵 |
-| [`08_DECISIONS.md`](./08_DECISIONS.md) | **검증 기록.** 기존 문서 충돌 14건의 확정 결론과 근거 |
+| [`08_DECISIONS.md`](./08_DECISIONS.md) | **결정 기록 19건.** 문서 대조(D1–D14)와 구현에서 나온 것(D15–D19) |
 | [`09_DEVELOPMENT_PLAN.md`](./09_DEVELOPMENT_PLAN.md) | **개발계획서.** 38개 수직 슬라이스, 의존 그래프, 스텁 교체 원장 |
 | [`10_AI_JUDGMENTS.md`](./10_AI_JUDGMENTS.md) | AI 판단 지점의 구조화 결정 설계와 기존 방식 비교 |
 | [`11_SOVEREIGN_JUDGMENT.md`](./11_SOVEREIGN_JUDGMENT.md) | **주권 판단 계층.** 제약 채점, 정본 재현, 모델 앵커링, G-BIAS 게이트 |
 | [`12_ONCHAIN_DEPENDENCIES.md`](./12_ONCHAIN_DEPENDENCIES.md) | 온체인 계층에서 직접 만들 것과 기존 서비스로 대체할 것 |
+| [`14_USER_JOURNEY.md`](./14_USER_JOURNEY.md) | 주제 등록부터 보고서 다운로드까지 전 과정 |
 | [`15_BRIDGE_SERVER.md`](./15_BRIDGE_SERVER.md) | 지금 공유 서버를 쓰는 이유와 벗어나는 순서 |
 | [`16_ONCHAIN_PLAN.md`](./16_ONCHAIN_PLAN.md) | **블록체인 도입 계획.** 단계·비용·사용자 경험 |
 | [`13_VS_C0_FINDINGS.md`](./13_VS_C0_FINDINGS.md) | **VS-C0 확인 결과.** ComposeDB 중단, DKIM 레지스트리 권한 위험 |
+| [`17_STATUS.md`](./17_STATUS.md) | **현재 개발 상황.** 계획이 아니라 실측 |
 
 ## 읽는 순서
 
@@ -33,4 +38,4 @@
 2. **토론 구조** — 찬성 / 대안·합의 / 반대 3열. 가운데 열이 브리징 알고리즘의 결과물입니다.
 3. **삭제** — 없습니다. 디랭킹 → 블라인드 → 검색 제외 3단계로만 대응합니다.
 4. **반응** — 긍정 2종(💡🤝) + 부정 2종(🔍⚖️). 브리징 이진 신호 `r ∈ {0,1}`에 직결됩니다.
-5. **클라이언트** — 네이티브 Windows(WinUI 3) + 네이티브 Android(Jetpack Compose), 공유 Rust 코어.
+5. **클라이언트** — 네이티브 Windows(WinUI 3) + Android(Jetpack Compose) + iOS(SwiftUI), 공유 Rust 코어. 웹은 모두가 같이 보는 광장입니다.
