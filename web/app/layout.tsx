@@ -12,8 +12,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="wrap">
           <header className="site">
-            <h1><a href="/" style={{ color: "inherit" }}>CivicAgora</a></h1>
-            <p>정책을 함께 검증하는 시민 공론장</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+              <div>
+                <h1><a href="/" style={{ color: "inherit" }}>CivicAgora</a></h1>
+                <p>정책을 함께 검증하는 시민 공론장</p>
+              </div>
+              <a href="/register" className="muted" style={{ whiteSpace: "nowrap" }}>시민 인증</a>
+            </div>
           </header>
           {children}
         </div>

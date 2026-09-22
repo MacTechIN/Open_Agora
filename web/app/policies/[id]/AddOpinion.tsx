@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ErrorNotice from "@/components/ErrorNotice";
 import OpinionForm, { EMPTY_OPINION, opinionReady, type OpinionValue } from "@/components/OpinionForm";
 import { loadOrCreateDid } from "@/lib/identity";
 
@@ -45,7 +46,7 @@ export default function AddOpinion({ policyId, question }: { policyId: string; q
 
       <OpinionForm value={opinion} onChange={setOpinion} />
 
-      {error && <div className="error">{error}</div>}
+      {error && <ErrorNotice message={error} />}
 
       <button onClick={submit} disabled={!did || busy || !opinionReady(opinion)}
               style={{ width: "100%", marginTop: 6 }}>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CountedField, { PlainField } from "@/components/CountedField";
+import ErrorNotice from "@/components/ErrorNotice";
 import OpinionForm, { EMPTY_OPINION, opinionReady, type OpinionValue } from "@/components/OpinionForm";
 import { loadOrCreateDid } from "@/lib/identity";
 import { LIMITS, graphemeCount } from "@/lib/limits";
@@ -115,7 +116,7 @@ export default function NewPolicy() {
         <OpinionForm value={opinion} onChange={setOpinion} />
       </div>
 
-      {error && <div className="card error">{error}</div>}
+      {error && <ErrorNotice message={error} />}
 
       <button onClick={submit} disabled={!ready} style={{ width: "100%" }}>
         {busy ? "올리는 중…" : "주제 올리기"}

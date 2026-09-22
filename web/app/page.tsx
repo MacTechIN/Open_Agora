@@ -45,8 +45,8 @@ export default async function Plaza() {
       <div className="notice">
         <strong>공론장은 누구나 볼 수 있습니다.</strong>
         <div className="muted" style={{ marginTop: 4 }}>
-          글을 쓰려면 시민 ID가 필요하며, 브라우저에서 자동으로 만들어집니다.
-          실명과 이메일은 저장하지 않습니다.
+          읽는 데는 아무것도 필요 없습니다. 글을 쓰려면 이메일 인증이 한 번
+          필요하며, 인증 후에도 어떤 글이 누구의 것인지는 저장하지 않습니다.
         </div>
         {/* 명세가 약속한 것과 지금 되는 것이 다르면 사용자가 알아야 한다.
             VS-A4(서명), VS-F6(온체인 앵커)이 끝나면 단계적으로 바뀐다.
