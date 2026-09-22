@@ -72,6 +72,8 @@ pub struct DraftCard {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DebateCard {
     pub id: String,
+    /// 이 의견이 속한 안건. 찬반은 안건의 쟁점 질문에 대한 것이다.
+    pub policy_id: String,
     pub stance: StanceType,
     pub problem_definition: String,
     pub evidence_source: String,
@@ -124,7 +126,7 @@ pub fn grapheme_count(text: String) -> u32 {
     count_graphemes(&text) as u32
 }
 
-fn check_field(label: &str, value: &str, limit: usize) -> Result<(), CardError> {
+pub(crate) fn check_field(label: &str, value: &str, limit: usize) -> Result<(), CardError> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return Err(CardError::Empty {
@@ -146,7 +148,7 @@ fn check_field(label: &str, value: &str, limit: usize) -> Result<(), CardError> 
 ///
 /// 여기서는 형식만 본다. 허용 도메인 화이트리스트와 "미검증 출처" 배지는
 /// VS-D5에서 붙는다(`docs/00_PRODUCT_SPEC.md` §3).
-fn check_url(value: &str) -> Result<(), CardError> {
+pub(crate) fn check_url(value: &str) -> Result<(), CardError> {
     let url = value.trim();
     if url.is_empty() {
         // 근거 없는 주장을 걸러내는 것이 3단 입력의 존재 이유이므로 필수다.
@@ -205,12 +207,16 @@ impl DraftCard {
     /// 같은 식별자를 만들고, 이는 뒤에 붙을 내용 주소 지정(IPFS CID)과 결이 맞다.
     pub(crate) fn finalize(
         self,
+        policy_id: &str,
         author_did: &str,
         created_at: i64,
     ) -> Result<DebateCard, CardError> {
         self.validate()?;
 
         let mut hasher = Sha256::new();
+        // 안건을 해시에 넣는다. 같은 사람이 같은 순간에 서로 다른 안건에
+        // 같은 내용을 쓸 수 있고, 그때 식별자가 충돌하면 한쪽이 사라진다.
+        hasher.update(policy_id.as_bytes());
         hasher.update(author_did.as_bytes());
         hasher.update(created_at.to_be_bytes());
         hasher.update(self.stance.as_str().as_bytes());
@@ -228,6 +234,7 @@ impl DraftCard {
 
         Ok(DebateCard {
             id,
+            policy_id: policy_id.to_string(),
             stance: self.stance,
             problem_definition: self.problem_definition.trim().to_string(),
             evidence_source: self.evidence_source.trim().to_string(),
@@ -401,28 +408,30 @@ mod tests {
         fn 앞뒤_공백을_제거해_저장한다() {
             let mut draft = valid_draft();
             draft.problem_definition = "  앞뒤 공백  ".into();
-            let card = draft.finalize("did:key:zTest", 1_700_000_000_000).unwrap();
+            let card = draft
+                .finalize("pol1", "did:key:zTest", 1_700_000_000_000)
+                .unwrap();
             assert_eq!(card.problem_definition, "앞뒤 공백");
         }
 
         #[test]
         fn 같은_입력이_같은_식별자를_만든다() {
-            let a = valid_draft().finalize("did:key:zTest", 42).unwrap();
-            let b = valid_draft().finalize("did:key:zTest", 42).unwrap();
+            let a = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
+            let b = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
             assert_eq!(a.id, b.id);
         }
 
         #[test]
         fn 작성자가_다르면_식별자가_다르다() {
-            let a = valid_draft().finalize("did:key:zA", 42).unwrap();
-            let b = valid_draft().finalize("did:key:zB", 42).unwrap();
+            let a = valid_draft().finalize("pol1", "did:key:zA", 42).unwrap();
+            let b = valid_draft().finalize("pol1", "did:key:zB", 42).unwrap();
             assert_ne!(a.id, b.id);
         }
 
         #[test]
         fn 시각이_다르면_식별자가_다르다() {
-            let a = valid_draft().finalize("did:key:zTest", 42).unwrap();
-            let b = valid_draft().finalize("did:key:zTest", 43).unwrap();
+            let a = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
+            let b = valid_draft().finalize("pol1", "did:key:zTest", 43).unwrap();
             assert_ne!(a.id, b.id);
         }
 
@@ -437,8 +446,8 @@ mod tests {
             second.problem_definition = "가".into();
             second.evidence_source = "나다".into();
 
-            let a = first.finalize("did:key:zTest", 42).unwrap();
-            let b = second.finalize("did:key:zTest", 42).unwrap();
+            let a = first.finalize("pol1", "did:key:zTest", 42).unwrap();
+            let b = second.finalize("pol1", "did:key:zTest", 42).unwrap();
             assert_ne!(a.id, b.id);
         }
 
@@ -446,7 +455,7 @@ mod tests {
         fn 검증에_실패하면_확정되지_않는다() {
             let mut draft = valid_draft();
             draft.evidence_url = "잘못된 주소".into();
-            assert!(draft.finalize("did:key:zTest", 42).is_err());
+            assert!(draft.finalize("pol1", "did:key:zTest", 42).is_err());
         }
     }
 }

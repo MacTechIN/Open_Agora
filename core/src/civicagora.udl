@@ -36,62 +36,6 @@ namespace civicagora {
 // 삭제와 수정 함수가 없다는 점이 설계다. 카드는 등록 후 지울 수 없고
 // 스탠스도 바꿀 수 없다. 대응은 노출 조정 3단계뿐이다 (G-IMMUT).
 
-enum StanceType {
-    "Support",
-    "Alternative",
-    "Oppose",
-};
-
-dictionary DraftCard {
-    StanceType stance;
-    string problem_definition;    // 최대 150자
-    string evidence_source;       // 최대 200자
-    string evidence_url;          // 필수, 최대 500자 (글자 수 합계 제외)
-    string actionable_solution;   // 최대 150자
-};
-
-dictionary DebateCard {
-    string id;
-    StanceType stance;
-    string problem_definition;
-    string evidence_source;
-    string evidence_url;
-    string actionable_solution;
-    string author_did;
-    i64 created_at;               // epoch 밀리초
-};
-
-interface CardStore {
-    [Throws=CardError]
-    constructor(string path);
-
-    // 카드를 추가하고 식별자를 돌려준다.
-    [Throws=CardError]
-    string add(DraftCard draft, string author_did, i64 created_at);
-
-    // 최신순 목록. 브리징 점수순은 VS-F3에서.
-    [Throws=CardError]
-    sequence<DebateCard> list();
-
-    [Throws=CardError]
-    u32 count();
-};
-
-[Error]
-interface CardError {
-    Empty(string field);
-    TooLong(string field, u32 limit, u32 actual);
-    InvalidUrl(string reason);
-    Storage(string reason);
-};
-
-[Error]
-interface IdentityError {
-    InvalidPublicKey();
-    InvalidDid(string reason);
-    InvalidSignature();
-};
-
 // 코어 빌드 식별 정보
 dictionary CoreInfo {
     // 크레이트 버전 (Cargo.toml)
@@ -106,4 +50,125 @@ dictionary CoreInfo {
 
     // 디버그 빌드 여부. 릴리스 앱에서 true면 배포 사고다.
     boolean debug;
+};
+
+[Error]
+interface IdentityError {
+    InvalidPublicKey();
+    InvalidDid(string reason);
+    InvalidSignature();
+};
+
+// ── VS-A3′: 안건(주제)과 의견 ──────────────────────────────────────
+//
+// 삭제와 수정 함수가 없다는 점이 설계다. 등록 후 지울 수 없고 스탠스도
+// 바꿀 수 없다. 대응은 노출 조정 3단계뿐이다 (G-IMMUT).
+
+enum StanceType {
+    "Support",
+    "Alternative",
+    "Oppose",
+};
+
+enum PolicyCategory {
+    "GovPolicy",
+    "Legislation",
+    "PartyPolicy",
+    "Local",
+    "PublicOrg",
+    "SocialIssue",
+    "Whistleblow",
+};
+
+// 등록하려는 안건(주제).
+//
+// core_question이 토론의 축이다. 찬반은 주제가 아니라 이 질문에 대한 것이다.
+dictionary DraftPolicy {
+    string title;                  // 최대 60자
+    PolicyCategory category;
+    string background;             // 최대 300자 — 왜 지금 이슈인가
+    string core_question;          // 최대 100자 — 찬반이 성립하는 질문
+    string official_source_url;
+    string? target_agency;
+};
+
+dictionary Policy {
+    string id;
+    string title;
+    PolicyCategory category;
+    string background;
+    string core_question;
+    string official_source_url;
+    string? target_agency;
+    string author_did;
+    i64 created_at;
+};
+
+// 광장 목록용 요약. 집계를 함께 주어 목록 화면이 N+1 질의를 하지 않게 한다.
+dictionary PolicySummary {
+    Policy policy;
+    u32 support_count;
+    u32 alternative_count;
+    u32 oppose_count;
+    i64 last_activity_at;
+};
+
+// 의견. 세 필드의 의미는 논점·근거·제안으로 고정이고,
+// 화면에 보이는 질문만 입장에 따라 바뀐다.
+dictionary DraftCard {
+    StanceType stance;
+    string problem_definition;    // 논점, 최대 150자
+    string evidence_source;       // 근거, 최대 200자
+    string evidence_url;          // 필수, 최대 500자 (글자 수 합계 제외)
+    string actionable_solution;   // 제안, 최대 150자
+};
+
+dictionary DebateCard {
+    string id;
+    string policy_id;
+    StanceType stance;
+    string problem_definition;
+    string evidence_source;
+    string evidence_url;
+    string actionable_solution;
+    string author_did;
+    i64 created_at;               // epoch 밀리초
+};
+
+interface CardStore {
+    [Throws=CardError]
+    constructor(string path);
+
+    // 안건을 열고 첫 의견을 함께 등록한다. 둘은 한 트랜잭션이다.
+    // 주제만 던지고 빠지는 것을 막는다.
+    [Throws=CardError]
+    string open_policy(DraftPolicy draft, DraftCard first_opinion,
+                       string author_did, i64 created_at);
+
+    // 기존 안건에 의견을 추가한다.
+    [Throws=CardError]
+    string add_opinion(string policy_id, DraftCard draft,
+                       string author_did, i64 created_at);
+
+    // 광장 목록. 최근 활동순.
+    [Throws=CardError]
+    sequence<PolicySummary> list_policies();
+
+    [Throws=CardError]
+    Policy? get_policy(string policy_id);
+
+    // 한 안건의 의견 목록. 최신순. 브리징 점수순은 VS-F3에서.
+    [Throws=CardError]
+    sequence<DebateCard> list_opinions(string policy_id);
+
+    [Throws=CardError]
+    u32 count();
+};
+
+[Error]
+interface CardError {
+    Empty(string field);
+    TooLong(string field, u32 limit, u32 actual);
+    InvalidUrl(string reason);
+    Storage(string reason);
 };

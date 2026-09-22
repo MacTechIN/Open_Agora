@@ -14,14 +14,41 @@ use std::sync::Mutex;
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::card::{stance_from_str, stance_to_str, CardError, DebateCard, DraftCard};
+use crate::policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
 
 /// 스키마 버전. 마이그레이션 판단에 쓴다.
-const SCHEMA_VERSION: i64 = 1;
+///
+/// 2: 안건(policies) 도입, cards에 policy_id 추가.
+const SCHEMA_VERSION: i64 = 2;
 
 fn storage_error(e: impl std::fmt::Display) -> CardError {
     CardError::Storage {
         reason: e.to_string(),
     }
+}
+
+/// 의견 한 건을 넣는다. 안건 등록(트랜잭션)과 단독 추가가 같은 SQL을 쓰도록 분리한다.
+fn insert_card(connection: &Connection, card: &DebateCard) -> Result<(), CardError> {
+    connection
+        .execute(
+            "INSERT OR IGNORE INTO cards
+               (id, policy_id, stance, problem_definition, evidence_source,
+                evidence_url, actionable_solution, author_did, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                card.id,
+                card.policy_id,
+                stance_to_str(card.stance),
+                card.problem_definition,
+                card.evidence_source,
+                card.evidence_url,
+                card.actionable_solution,
+                card.author_did,
+                card.created_at,
+            ],
+        )
+        .map_err(storage_error)?;
+    Ok(())
 }
 
 /// 로컬 카드 저장소.
@@ -51,8 +78,20 @@ impl CardStore {
 
         connection
             .execute_batch(
-                "CREATE TABLE IF NOT EXISTS cards (
+                "CREATE TABLE IF NOT EXISTS policies (
                      id                   TEXT PRIMARY KEY,
+                     title                TEXT NOT NULL,
+                     category             TEXT NOT NULL,
+                     background           TEXT NOT NULL,
+                     core_question        TEXT NOT NULL,
+                     official_source_url  TEXT NOT NULL,
+                     target_agency        TEXT,
+                     author_did           TEXT NOT NULL,
+                     created_at           INTEGER NOT NULL
+                 );
+                 CREATE TABLE IF NOT EXISTS cards (
+                     id                   TEXT PRIMARY KEY,
+                     policy_id            TEXT NOT NULL REFERENCES policies(id),
                      stance               TEXT NOT NULL,
                      problem_definition   TEXT NOT NULL,
                      evidence_source      TEXT NOT NULL,
@@ -62,7 +101,11 @@ impl CardStore {
                      created_at           INTEGER NOT NULL
                  );
                  CREATE INDEX IF NOT EXISTS idx_cards_created_at
-                     ON cards (created_at DESC);",
+                     ON cards (created_at DESC);
+                 CREATE INDEX IF NOT EXISTS idx_cards_policy
+                     ON cards (policy_id, created_at DESC);
+                 CREATE INDEX IF NOT EXISTS idx_policies_created_at
+                     ON policies (created_at DESC);",
             )
             .map_err(storage_error)?;
 
@@ -72,76 +115,119 @@ impl CardStore {
         Ok(())
     }
 
-    /// 카드를 추가한다. 반환값은 카드 식별자.
+    /// 안건을 열고 첫 의견을 함께 등록한다. 반환값은 안건 식별자.
+    ///
+    /// 둘을 한 트랜잭션으로 묶는다. 안건만 등록되고 의견이 실패하면 토론이
+    /// 빈 상태로 남고, 여는 사람이 자기 입장을 밝히지 않은 채 주제만 던지게
+    /// 된다(`docs/14_USER_JOURNEY.md` §3).
+    pub fn open_policy(
+        &self,
+        draft: DraftPolicy,
+        first_opinion: DraftCard,
+        author_did: String,
+        created_at: i64,
+    ) -> Result<String, CardError> {
+        // 검증을 먼저 모두 끝낸다. 안건이 들어간 뒤 의견이 거부되면
+        // 롤백해야 하는데, 그 전에 걸러내는 편이 단순하다.
+        let policy = draft.finalize(&author_did, created_at)?;
+        let card = first_opinion.finalize(&policy.id, &author_did, created_at)?;
+
+        let mut connection = self.connection.lock().map_err(storage_error)?;
+        let tx = connection.transaction().map_err(storage_error)?;
+
+        tx.execute(
+            "INSERT OR IGNORE INTO policies
+               (id, title, category, background, core_question,
+                official_source_url, target_agency, author_did, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                policy.id,
+                policy.title,
+                policy.category.as_str(),
+                policy.background,
+                policy.core_question,
+                policy.official_source_url,
+                policy.target_agency,
+                policy.author_did,
+                policy.created_at,
+            ],
+        )
+        .map_err(storage_error)?;
+
+        insert_card(&tx, &card)?;
+        tx.commit().map_err(storage_error)?;
+
+        Ok(policy.id)
+    }
+
+    /// 기존 안건에 의견을 추가한다. 반환값은 의견 식별자.
     ///
     /// 같은 내용을 같은 밀리초에 두 번 추가하면 식별자가 같으므로 조용히
-    /// 무시된다. 의도된 동작이다 — 버튼 중복 클릭으로 같은 카드가 두 개
-    /// 생기는 것을 막는다.
-    pub fn add(
+    /// 무시된다. 버튼 중복 클릭으로 같은 의견이 두 개 생기는 것을 막는다.
+    pub fn add_opinion(
         &self,
+        policy_id: String,
         draft: DraftCard,
         author_did: String,
         created_at: i64,
     ) -> Result<String, CardError> {
-        let card = draft.finalize(&author_did, created_at)?;
+        let card = draft.finalize(&policy_id, &author_did, created_at)?;
         let connection = self.connection.lock().map_err(storage_error)?;
 
-        connection
-            .execute(
-                "INSERT OR IGNORE INTO cards
-                   (id, stance, problem_definition, evidence_source,
-                    evidence_url, actionable_solution, author_did, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                rusqlite::params![
-                    card.id,
-                    stance_to_str(card.stance),
-                    card.problem_definition,
-                    card.evidence_source,
-                    card.evidence_url,
-                    card.actionable_solution,
-                    card.author_did,
-                    card.created_at,
-                ],
+        // 없는 안건에 의견을 달면 어디에도 보이지 않는 글이 된다.
+        let exists: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM policies WHERE id = ?1",
+                [&policy_id],
+                |r| r.get(0),
             )
             .map_err(storage_error)?;
+        if exists == 0 {
+            return Err(CardError::Storage {
+                reason: "없는 주제입니다".into(),
+            });
+        }
 
+        insert_card(&connection, &card)?;
         Ok(card.id)
     }
 
-    /// 카드를 최신순으로 돌려준다.
+    /// 한 안건의 의견을 최신순으로 돌려준다.
     ///
     /// 브리징 점수순 정렬은 VS-F3에서 붙는다. 그때까지는 최신순이다.
-    pub fn list(&self) -> Result<Vec<DebateCard>, CardError> {
+    pub fn list_opinions(&self, policy_id: String) -> Result<Vec<DebateCard>, CardError> {
         let connection = self.connection.lock().map_err(storage_error)?;
         let mut statement = connection
             .prepare(
-                "SELECT id, stance, problem_definition, evidence_source,
+                "SELECT id, policy_id, stance, problem_definition, evidence_source,
                         evidence_url, actionable_solution, author_did, created_at
                    FROM cards
+                  WHERE policy_id = ?1
                   ORDER BY created_at DESC, id",
             )
             .map_err(storage_error)?;
 
         let rows = statement
-            .query_map([], |row| {
-                let stance: String = row.get(1)?;
+            .query_map([&policy_id], |row| {
+                let stance: String = row.get(2)?;
                 Ok(DebateCard {
                     id: row.get(0)?,
+                    policy_id: row.get(1)?,
                     // 알 수 없는 스탠스는 데이터 손상이다. 조용히 기본값으로
                     // 바꾸면 찬성 글이 반대 열에 나타날 수 있으므로 오류로 만든다.
                     stance: stance_from_str(&stance).ok_or_else(|| {
                         rusqlite::Error::FromSqlConversionFailure(
-                            1,
+                            2,
                             rusqlite::types::Type::Text,
                             format!("알 수 없는 스탠스: {stance}").into(),
                         )
                     })?,
-                    problem_definition: row.get(2)?,
-                    evidence_source: row.get(3)?,
-                    evidence_url: row.get(4)?,
-                    actionable_solution: row.get(5)?,
-                    author_did: row.get(6)?,
-                    created_at: row.get(7)?,
+                    problem_definition: row.get(3)?,
+                    evidence_source: row.get(4)?,
+                    evidence_url: row.get(5)?,
+                    actionable_solution: row.get(6)?,
+                    author_did: row.get(7)?,
+                    created_at: row.get(8)?,
                 })
             })
             .map_err(storage_error)?;
@@ -149,7 +235,69 @@ impl CardStore {
         rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)
     }
 
-    /// 저장된 카드 수.
+    /// 광장 목록 — 안건과 찬반 분포를 함께 돌려준다.
+    ///
+    /// 목록 화면이 안건마다 의견을 다시 읽지 않아도 되도록 집계를 한 번에
+    /// 만든다. 안건이 늘어나면 N+1 질의가 눈에 띄게 느려진다.
+    pub fn list_policies(&self) -> Result<Vec<PolicySummary>, CardError> {
+        let connection = self.connection.lock().map_err(storage_error)?;
+        let mut statement = connection
+            .prepare(
+                "SELECT p.id, p.title, p.category, p.background, p.core_question,
+                        p.official_source_url, p.target_agency, p.author_did, p.created_at,
+                        COALESCE(SUM(c.stance = 'SUPPORT'), 0),
+                        COALESCE(SUM(c.stance = 'ALTERNATIVE'), 0),
+                        COALESCE(SUM(c.stance = 'OPPOSE'), 0),
+                        COALESCE(MAX(c.created_at), p.created_at)
+                   FROM policies p
+                   LEFT JOIN cards c ON c.policy_id = p.id
+                  GROUP BY p.id
+                  ORDER BY COALESCE(MAX(c.created_at), p.created_at) DESC",
+            )
+            .map_err(storage_error)?;
+
+        let rows = statement
+            .query_map([], |row| {
+                let category: String = row.get(2)?;
+                Ok(PolicySummary {
+                    policy: Policy {
+                        id: row.get(0)?,
+                        title: row.get(1)?,
+                        category: PolicyCategory::parse(&category).ok_or_else(|| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                2,
+                                rusqlite::types::Type::Text,
+                                format!("알 수 없는 분류: {category}").into(),
+                            )
+                        })?,
+                        background: row.get(3)?,
+                        core_question: row.get(4)?,
+                        official_source_url: row.get(5)?,
+                        target_agency: row.get(6)?,
+                        author_did: row.get(7)?,
+                        created_at: row.get(8)?,
+                    },
+                    support_count: row.get::<_, i64>(9)? as u32,
+                    alternative_count: row.get::<_, i64>(10)? as u32,
+                    oppose_count: row.get::<_, i64>(11)? as u32,
+                    last_activity_at: row.get(12)?,
+                })
+            })
+            .map_err(storage_error)?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)
+    }
+
+    /// 안건 하나를 읽는다.
+    pub fn get_policy(&self, policy_id: String) -> Result<Option<Policy>, CardError> {
+        Ok(self
+            .list_policies()?
+            .into_iter()
+            .find(|s| s.policy.id == policy_id)
+            .map(|s| s.policy))
+    }
+
+    /// 저장된 의견 수.
     pub fn count(&self) -> Result<u32, CardError> {
         let connection = self.connection.lock().map_err(storage_error)?;
         let count: i64 = connection
@@ -165,10 +313,22 @@ impl CardStore {
 mod tests {
     use super::*;
     use crate::card::StanceType;
+    use crate::policy::PolicyCategory;
 
     const DID: &str = "did:key:zDnaewBSXeQ82kLpw79E5X3yjpPfRFz1fxApcEVaxh6TxWMP4";
 
-    fn draft(stance: StanceType, problem: &str) -> DraftCard {
+    fn draft_policy(title: &str) -> DraftPolicy {
+        DraftPolicy {
+            title: title.into(),
+            category: PolicyCategory::Legislation,
+            background: "현행 제도가 모든 업종에 일률 적용되어 부담이 크다".into(),
+            core_question: "직종별로 적용 기준을 달리해야 하는가?".into(),
+            official_source_url: "https://likms.assembly.go.kr/bill/detail.do".into(),
+            target_agency: Some("고용노동부".into()),
+        }
+    }
+
+    fn draft_card(stance: StanceType, problem: &str) -> DraftCard {
         DraftCard {
             stance,
             problem_definition: problem.into(),
@@ -182,127 +342,224 @@ mod tests {
         CardStore::new(":memory:".into()).expect("메모리 저장소")
     }
 
+    /// 안건 하나를 열고 식별자를 돌려준다.
+    fn open(store: &CardStore, title: &str, at: i64) -> String {
+        store
+            .open_policy(
+                draft_policy(title),
+                draft_card(StanceType::Support, "첫 의견"),
+                DID.into(),
+                at,
+            )
+            .expect("안건 등록")
+    }
+
     #[test]
     fn 새_저장소는_비어_있다() {
         let store = memory_store();
+        assert!(store.list_policies().unwrap().is_empty());
         assert_eq!(store.count().unwrap(), 0);
-        assert!(store.list().unwrap().is_empty());
     }
 
     #[test]
-    fn 카드를_저장하고_읽는다() {
+    fn 안건과_첫_의견이_함께_등록된다() {
+        // 주제만 던지고 빠질 수 없다는 규칙을 고정한다.
         let store = memory_store();
-        let id = store
-            .add(
-                draft(StanceType::Oppose, "행정 비용 문제"),
+        let id = open(&store, "탄력 근로제", 1_000);
+
+        let policies = store.list_policies().unwrap();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].policy.id, id);
+        assert_eq!(
+            policies[0].policy.core_question,
+            "직종별로 적용 기준을 달리해야 하는가?"
+        );
+        assert_eq!(policies[0].total(), 1, "첫 의견이 함께 저장되지 않았다");
+
+        let opinions = store.list_opinions(id.clone()).unwrap();
+        assert_eq!(opinions.len(), 1);
+        assert_eq!(opinions[0].policy_id, id);
+    }
+
+    #[test]
+    fn 안건_검증에_실패하면_아무것도_저장되지_않는다() {
+        // 트랜잭션 경계. 안건만 남고 의견이 없으면 빈 토론이 된다.
+        let store = memory_store();
+        let mut bad = draft_policy("제목");
+        bad.core_question = "".into();
+        let result = store.open_policy(bad, draft_card(StanceType::Support, "의견"), DID.into(), 1);
+        assert!(result.is_err());
+        assert!(store.list_policies().unwrap().is_empty());
+        assert_eq!(store.count().unwrap(), 0);
+    }
+
+    #[test]
+    fn 첫_의견_검증에_실패해도_안건이_남지_않는다() {
+        let store = memory_store();
+        let mut bad = draft_card(StanceType::Support, "의견");
+        bad.evidence_url = "".into();
+        let result = store.open_policy(draft_policy("제목"), bad, DID.into(), 1);
+        assert!(result.is_err());
+        assert!(store.list_policies().unwrap().is_empty(), "안건만 남았다");
+    }
+
+    #[test]
+    fn 기존_안건에_의견을_추가한다() {
+        let store = memory_store();
+        let id = open(&store, "탄력 근로제", 1_000);
+        store
+            .add_opinion(
+                id.clone(),
+                draft_card(StanceType::Oppose, "반대 의견"),
                 DID.into(),
-                1_000,
+                2_000,
             )
             .unwrap();
 
-        let cards = store.list().unwrap();
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].id, id);
-        assert_eq!(cards[0].stance, StanceType::Oppose);
-        assert_eq!(cards[0].problem_definition, "행정 비용 문제");
-        assert_eq!(cards[0].author_did, DID);
-        assert_eq!(cards[0].created_at, 1_000);
+        let opinions = store.list_opinions(id.clone()).unwrap();
+        assert_eq!(opinions.len(), 2);
+        // 최신순
+        assert_eq!(opinions[0].stance, StanceType::Oppose);
     }
 
     #[test]
-    fn 세_스탠스가_모두_왕복한다() {
-        // 스탠스가 뒤바뀌면 찬성 글이 반대 열에 나타난다.
+    fn 없는_안건에는_의견을_달_수_없다() {
+        // 어디에도 보이지 않는 글이 생기는 것을 막는다.
         let store = memory_store();
+        let result = store.add_opinion(
+            "없는안건".into(),
+            draft_card(StanceType::Support, "의견"),
+            DID.into(),
+            1,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn 찬반_분포를_집계한다() {
+        let store = memory_store();
+        let id = open(&store, "주제", 1_000); // 첫 의견은 SUPPORT
         for (i, stance) in [
-            StanceType::Support,
-            StanceType::Alternative,
             StanceType::Oppose,
+            StanceType::Oppose,
+            StanceType::Alternative,
         ]
         .into_iter()
         .enumerate()
         {
             store
-                .add(
-                    draft(stance, &format!("의견 {i}")),
+                .add_opinion(
+                    id.clone(),
+                    draft_card(stance, &format!("의견 {i}")),
                     DID.into(),
-                    1_000 + i as i64,
+                    2_000 + i as i64,
                 )
                 .unwrap();
         }
-        let stored: Vec<_> = store.list().unwrap().iter().map(|c| c.stance).collect();
-        // 최신순이므로 역순이다
-        assert_eq!(
-            stored,
-            vec![
-                StanceType::Oppose,
-                StanceType::Alternative,
-                StanceType::Support
-            ]
-        );
+        let summary = &store.list_policies().unwrap()[0];
+        assert_eq!(summary.support_count, 1);
+        assert_eq!(summary.oppose_count, 2);
+        assert_eq!(summary.alternative_count, 1);
+        assert_eq!(summary.total(), 4);
     }
 
     #[test]
-    fn 최신순으로_정렬한다() {
+    fn 최근_활동순으로_정렬한다() {
         let store = memory_store();
-        for t in [100, 300, 200] {
-            store
-                .add(draft(StanceType::Support, &format!("t{t}")), DID.into(), t)
-                .unwrap();
-        }
-        let times: Vec<_> = store.list().unwrap().iter().map(|c| c.created_at).collect();
-        assert_eq!(times, vec![300, 200, 100]);
+        let old = open(&store, "오래된 주제", 1_000);
+        let recent = open(&store, "최근 주제", 2_000);
+        // 오래된 주제에 새 의견을 달면 위로 올라와야 한다
+        store
+            .add_opinion(
+                old.clone(),
+                draft_card(StanceType::Oppose, "새 의견"),
+                DID.into(),
+                3_000,
+            )
+            .unwrap();
+
+        let order: Vec<_> = store
+            .list_policies()
+            .unwrap()
+            .iter()
+            .map(|s| s.policy.id.clone())
+            .collect();
+        assert_eq!(order, vec![old, recent]);
+    }
+
+    #[test]
+    fn 의견은_안건별로_분리된다() {
+        let store = memory_store();
+        let a = open(&store, "주제 A", 1_000);
+        let b = open(&store, "주제 B", 2_000);
+        store
+            .add_opinion(
+                a.clone(),
+                draft_card(StanceType::Oppose, "A의 의견"),
+                DID.into(),
+                3_000,
+            )
+            .unwrap();
+
+        assert_eq!(store.list_opinions(a).unwrap().len(), 2);
+        assert_eq!(store.list_opinions(b).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn 같은_내용도_안건이_다르면_다른_의견이다() {
+        // 안건을 해시에 넣지 않으면 식별자가 충돌해 한쪽이 사라진다.
+        let store = memory_store();
+        let a = open(&store, "주제 A", 1_000);
+        let b = open(&store, "주제 B", 1_000);
+        let card = draft_card(StanceType::Oppose, "같은 내용");
+        let id_a = store
+            .add_opinion(a, card.clone(), DID.into(), 5_000)
+            .unwrap();
+        let id_b = store.add_opinion(b, card, DID.into(), 5_000).unwrap();
+        assert_ne!(id_a, id_b);
     }
 
     #[test]
     fn 중복_추가를_무시한다() {
-        // 버튼을 두 번 누르면 같은 카드가 두 개 생겨서는 안 된다.
         let store = memory_store();
+        let id = open(&store, "주제", 1_000);
+        let card = draft_card(StanceType::Oppose, "같은 글");
         let first = store
-            .add(draft(StanceType::Support, "같은 글"), DID.into(), 500)
+            .add_opinion(id.clone(), card.clone(), DID.into(), 500)
             .unwrap();
-        let second = store
-            .add(draft(StanceType::Support, "같은 글"), DID.into(), 500)
-            .unwrap();
+        let second = store.add_opinion(id, card, DID.into(), 500).unwrap();
         assert_eq!(first, second);
-        assert_eq!(store.count().unwrap(), 1);
-    }
-
-    #[test]
-    fn 검증에_실패하면_저장하지_않는다() {
-        let store = memory_store();
-        let mut bad = draft(StanceType::Support, "정상");
-        bad.evidence_url = "".into();
-        assert!(store.add(bad, DID.into(), 1).is_err());
-        assert_eq!(store.count().unwrap(), 0, "실패한 카드가 저장됐다");
+        assert_eq!(store.count().unwrap(), 2, "첫 의견 + 중복 1건");
     }
 
     #[test]
     fn 파일에_저장하면_재시작_후에도_남는다() {
-        // VS-A3의 수용 기준. 앱을 다시 열어도 카드가 보여야 한다.
+        // VS-A3의 수용 기준. 앱을 다시 열어도 주제와 의견이 보여야 한다.
         let dir = std::env::temp_dir().join(format!("civicagora-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("cards.db");
-        let path_str = path.to_string_lossy().to_string();
+        let path = dir.join("cards.db").to_string_lossy().to_string();
 
         let id = {
-            let store = CardStore::new(path_str.clone()).unwrap();
-            store
-                .add(
-                    draft(StanceType::Alternative, "영속성 확인"),
-                    DID.into(),
-                    7_000,
-                )
-                .unwrap()
+            let store = CardStore::new(path.clone()).unwrap();
+            open(&store, "영속성 확인", 7_000)
         }; // 저장소를 닫는다 = 앱 종료
 
         {
-            let reopened = CardStore::new(path_str).unwrap();
-            let cards = reopened.list().unwrap();
-            assert_eq!(cards.len(), 1, "재시작 후 카드가 사라졌다");
-            assert_eq!(cards[0].id, id);
-            assert_eq!(cards[0].problem_definition, "영속성 확인");
+            let reopened = CardStore::new(path).unwrap();
+            let policies = reopened.list_policies().unwrap();
+            assert_eq!(policies.len(), 1, "재시작 후 주제가 사라졌다");
+            assert_eq!(policies[0].policy.title, "영속성 확인");
+            assert_eq!(reopened.list_opinions(id).unwrap().len(), 1);
         }
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn 안건을_식별자로_읽는다() {
+        let store = memory_store();
+        let id = open(&store, "주제", 1_000);
+        assert_eq!(store.get_policy(id).unwrap().unwrap().title, "주제");
+        assert!(store.get_policy("없음".into()).unwrap().is_none());
     }
 }
