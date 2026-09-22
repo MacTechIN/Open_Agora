@@ -38,6 +38,12 @@ postgresql://사용자:비밀번호@ep-xxxx.region.aws.neon.tech/neondb?sslmode=
 
 5. Deploy 를 누릅니다.
 
+프레임워크는 `web/vercel.json` 이 `nextjs` 로 지정합니다. 프로젝트 설정의
+Framework Preset 이 **Other** 로 잡히면 Vercel 이 정적 사이트로 취급해
+`public` 폴더를 찾다가 실패합니다 — Next.js 빌드 자체는 성공하는데 그
+다음 단계에서 깨지므로 로그만 보면 원인을 짐작하기 어렵습니다.
+설정 화면에서 바꿔도 되지만, 저장소에 적어 두면 새로 연결할 때도 맞습니다.
+
 배포가 끝나면 `https://<프로젝트명>.vercel.app` 주소가 나옵니다.
 이후 `main` 에 푸시할 때마다 자동으로 다시 배포됩니다.
 
