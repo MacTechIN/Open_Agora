@@ -16,6 +16,10 @@ export default function Register() {
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [done, setDone] = useState(false);
+  // 처음 등록인지 기기를 더한 것인지. 같은 문구를 쓰면 이미 가입한 사람이
+  // "또 가입됐나?" 하고 헷갈린다.
+  const [added, setAdded] = useState<boolean | null>(null);
+  const [devices, setDevices] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -53,7 +57,9 @@ export default function Register() {
     setBusy(true);
     setError(null);
     try {
-      await post("/api/auth/verify", { email, code, did });
+      const result = await post("/api/auth/verify", { email, code, did });
+      setAdded(result.added ?? null);
+      setDevices(typeof result.devices === "number" ? result.devices : null);
       setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -69,8 +75,14 @@ export default function Register() {
         <div className="card">
           <p style={{ margin: 0 }}>이제 주제를 올리고 의견을 남길 수 있습니다.</p>
           <p className="muted" style={{ margin: "8px 0 0" }}>
-            이 브라우저의 시민 ID로 인증되었습니다. 브라우저 데이터를 지우면
-            신원이 사라지므로 다시 인증해야 합니다.
+            {added === false
+              ? "이 기기는 이미 등록되어 있었습니다."
+              : "이 브라우저의 시민 ID가 등록되었습니다."}
+            {devices !== null && ` (등록된 기기 ${devices}대)`}
+          </p>
+          <p className="muted" style={{ margin: "8px 0 0" }}>
+            브라우저 데이터를 지우면 이 기기의 시민 ID가 사라집니다. 그때는
+            같은 이메일로 다시 인증하면 됩니다 — 기기가 하나 더해집니다.
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -88,8 +100,14 @@ export default function Register() {
 
       <div className="card">
         <p style={{ marginTop: 0 }}>
-          글을 쓰려면 이메일 인증이 <strong>한 번</strong> 필요합니다.
-          한 이메일로 한 사람만 가입할 수 있습니다.
+          글을 쓰려면 이메일 인증이 필요합니다.
+          <strong> 이미 인증한 분도 기기를 바꾸면 여기서 다시 인증해 주세요.</strong>
+        </p>
+        <p className="muted" style={{ marginTop: 8 }}>
+          시민 ID는 기기 안에서 만들어지고 <strong>기기 밖으로 나오지 않습니다</strong>.
+          그래서 브라우저·윈도우 앱·안드로이드 앱이 각각 다른 ID를 갖습니다.
+          같은 이메일로 다시 인증하면 <strong>그 기기가 추가</strong>됩니다 —
+          새로 가입되는 것이 아닙니다. 한 이메일로 최대 5대까지입니다.
         </p>
         <p className="muted" style={{ marginBottom: 0 }}>
           인증이 끝나면 회원 자격만 남습니다. <strong>어떤 글이 누구의 것인지는

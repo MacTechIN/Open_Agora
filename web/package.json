@@ -19,7 +19,8 @@
     "e2e:signing": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-signing.mjs",
     "check:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-anchor.mjs",
     "verify:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/verify-anchor.mjs",
-    "e2e:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-anchor.mjs"
+    "e2e:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-anchor.mjs",
+    "e2e:devices": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-devices.mjs"
   },
   "dependencies": {
     "next": "^15.5.25",

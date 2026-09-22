@@ -18,8 +18,10 @@ struct MemberView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("글을 쓰려면 이메일 인증이 한 번 필요합니다. 한 이메일로 한 사람만 가입할 수 있습니다.")
+                    Text("글을 쓰려면 이메일 인증이 필요합니다. 이미 인증하셨더라도 이 기기에서는 한 번 더 해 주세요.")
                         .font(.subheadline)
+                    Text("시민 ID는 기기 안에서 만들어지고 기기 밖으로 나오지 않습니다. 그래서 기기마다 다른 ID를 갖습니다. 같은 이메일로 다시 인증하면 이 기기가 추가됩니다 — 새로 가입되는 것이 아닙니다. 한 이메일로 최대 5대까지입니다.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Text("인증이 끝나면 회원 자격만 남습니다. 어떤 글이 누구의 것인지는 저장하지 않습니다.")
                         .font(.caption).foregroundStyle(.secondary)
 

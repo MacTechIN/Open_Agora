@@ -28,7 +28,7 @@
  * 아예 보지 못하고, 증명만 검증한다. → docs/15_BRIDGE_SERVER.md
  */
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
-import { requireDb } from "./db";
+import { requireDb } from "./db.ts";
 
 /** 인증코드 유효 시간. 짧게 두어 유출된 코드의 수명을 줄인다. */
 const CODE_TTL_MINUTES = 10;
@@ -90,6 +90,9 @@ export async function migrateAuth() {
       email_hash    TEXT PRIMARY KEY,
       registered_on DATE NOT NULL
     )`;
+  // 등록한 기기 수. 어떤 DID 인지는 담지 않으므로 두 표는 여전히
+  // 연결되지 않는다 — 이 숫자로는 누가 무엇을 썼는지 알 수 없다.
+  await db`ALTER TABLE consumed_emails ADD COLUMN IF NOT EXISTS device_count INT NOT NULL DEFAULT 1`;
   await db`
     CREATE TABLE IF NOT EXISTS members (
       did           TEXT PRIMARY KEY,
@@ -107,6 +110,24 @@ export async function migrateAuth() {
 }
 
 export class AuthError extends Error {}
+
+/**
+ * 한 이메일이 등록할 수 있는 기기 수.
+ *
+ * 시민 ID 는 **기기 안에서 만들어지고 기기 밖으로 나오지 않습니다**
+ * (브라우저 IndexedDB, Windows TPM, Android Keystore, iOS Secure Enclave).
+ * 하드웨어 키는 내보낼 수 없으므로 기기마다 다른 DID 가 됩니다.
+ *
+ * 그래서 "한 이메일 = 한 DID" 로 두면 **한 이메일 = 한 기기**가 됩니다.
+ * 웹에서 가입한 사람이 앱에서는 글을 못 쓰고, 브라우저 데이터를 지우면
+ * 영구히 잠깁니다. 사람과 기기를 같은 것으로 취급한 실수였습니다.
+ *
+ * 상한을 두는 이유는 한 사람이 DID 를 무한정 늘려 여러 몫을 행사하는 것을
+ * 막기 위해서입니다. 다만 이것은 **약한 방어**입니다 — 진짜 1인 1표는
+ * ZK 가입(VS-C3)에서 nullifier 로 보장합니다. 반응·투표(VS-D2)를 붙이기
+ * 전에 그 단계가 필요합니다.
+ */
+const MAX_DEVICES = 5;
 
 /** 이메일이 이미 가입했는가. */
 export async function emailAlreadyUsed(emailHash: string): Promise<boolean> {
@@ -170,11 +191,20 @@ export async function issueCode(emailHash: string): Promise<string> {
  * 이메일 기록과 회원 기록을 한 트랜잭션에 넣되 **서로 연결하지 않는다.**
  * 둘 다 날짜만 남기므로 나중에 시각으로 맞춰 볼 수 없다.
  */
+/**
+ * 코드를 확인하고 이 **기기**를 등록합니다.
+ *
+ * 같은 이메일로 다시 인증하면 **기기를 더합니다.** 거절하지 않습니다 —
+ * 시민 ID 는 기기 밖으로 나올 수 없으므로, 기기를 바꾸거나 앱을 새로 깔면
+ * 반드시 새 DID 가 되기 때문입니다.
+ *
+ * 돌려주는 값은 화면 문구를 고르는 데만 씁니다(처음인지, 기기를 더한 건지).
+ */
 export async function verifyAndRegister(
   emailHash: string,
   code: string,
   did: string
-): Promise<void> {
+): Promise<{ added: boolean; devices: number }> {
   const db = requireDb();
 
   const [row] = await db`
@@ -198,17 +228,41 @@ export async function verifyAndRegister(
     throw new AuthError("인증코드가 맞지 않습니다.");
   }
 
-  if (await emailAlreadyUsed(emailHash)) {
-    throw new AuthError("이미 가입한 이메일입니다.");
+  // 이미 이 기기가 회원이면 더 할 일이 없다. 코드만 지우고 통과시킨다 —
+  // 두 번 눌렀다고 오류를 내면 사용자는 무엇이 잘못됐는지 알 수 없다.
+  if (await isMember(did)) {
+    await db`DELETE FROM verification_codes WHERE email_hash = ${emailHash}`;
+    return { added: false, devices: await deviceCount(emailHash) };
+  }
+
+  const [existing] = await db`
+    SELECT device_count FROM consumed_emails WHERE email_hash = ${emailHash}`;
+
+  if (existing && Number(existing.device_count) >= MAX_DEVICES) {
+    throw new AuthError(
+      `이 이메일로 등록할 수 있는 기기 ${MAX_DEVICES}대를 모두 썼습니다.`
+    );
   }
 
   const day = today();
   await db.begin(async (tx) => {
     // 두 표를 연결하지 않는다. 공통 식별자도, 외래키도 두지 않는다.
-    await tx`INSERT INTO consumed_emails (email_hash, registered_on)
-             VALUES (${emailHash}, ${day}) ON CONFLICT DO NOTHING`;
+    // device_count 는 숫자일 뿐이어서 어떤 DID 인지 알려주지 않는다.
+    await tx`INSERT INTO consumed_emails (email_hash, registered_on, device_count)
+             VALUES (${emailHash}, ${day}, 1)
+             ON CONFLICT (email_hash)
+             DO UPDATE SET device_count = consumed_emails.device_count + 1`;
     await tx`INSERT INTO members (did, registered_on)
              VALUES (${did}, ${day}) ON CONFLICT DO NOTHING`;
     await tx`DELETE FROM verification_codes WHERE email_hash = ${emailHash}`;
   });
+
+  return { added: true, devices: (existing ? Number(existing.device_count) : 0) + 1 };
+}
+
+/** 이 이메일이 등록한 기기 수. */
+async function deviceCount(emailHash: string): Promise<number> {
+  const db = requireDb();
+  const [row] = await db`SELECT device_count FROM consumed_emails WHERE email_hash = ${emailHash}`;
+  return row ? Number(row.device_count) : 0;
 }

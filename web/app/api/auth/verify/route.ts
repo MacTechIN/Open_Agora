@@ -18,9 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     await migrateAuth();
-    await verifyAndRegister(hashEmail(address), String(code), identity);
+    const result = await verifyAndRegister(hashEmail(address), String(code), identity);
 
-    return NextResponse.json({ registered: true });
+    // 처음 가입인지 기기를 더한 것인지 알려준다. 같은 문구를 쓰면 이미
+    // 가입한 사람이 "또 가입됐나?" 하고 헷갈린다. 이메일 자체는 담지 않는다.
+    return NextResponse.json({ registered: true, ...result });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
