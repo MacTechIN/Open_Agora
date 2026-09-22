@@ -459,3 +459,70 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod contract_tests {
+    use super::*;
+    use crate::policy::{MAX_BACKGROUND, MAX_QUESTION, MAX_TITLE};
+
+    /// 한도가 contracts/limits.json과 일치하는지 확인한다.
+    ///
+    /// 웹과 서버는 그 JSON을 읽는다. 여기서 값이 갈리면 앱에서 통과한 글이
+    /// 서버에서 거부되거나 그 반대가 되며, 사용자는 이유를 알 수 없다.
+    #[test]
+    fn 한도가_공유_계약과_일치한다() {
+        let raw = include_str!("../../contracts/limits.json");
+
+        // 작은 JSON이므로 의존성을 늘리지 않고 직접 읽는다.
+        let find = |path: &str| -> usize {
+            let key = format!("\"{path}\":");
+            let start = raw.find(&key).unwrap_or_else(|| panic!("{path} 없음")) + key.len();
+            raw[start..]
+                .trim_start()
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or_else(|| panic!("{path} 값을 읽을 수 없음"))
+        };
+
+        assert_eq!(find("title"), MAX_TITLE);
+        assert_eq!(find("background"), MAX_BACKGROUND);
+        assert_eq!(find("coreQuestion"), MAX_QUESTION);
+        assert_eq!(find("problemDefinition"), MAX_PROBLEM);
+        assert_eq!(find("evidenceSource"), MAX_EVIDENCE);
+        assert_eq!(find("actionableSolution"), MAX_SOLUTION);
+        assert_eq!(find("url"), MAX_URL);
+    }
+
+    /// 웹과 같은 고정 입력으로 검증 규칙이 일치하는지 확인한다.
+    ///
+    /// 같은 파일을 web/scripts/check-contract.mjs 가 읽는다. 규칙을 두 언어로
+    /// 구현할 수밖에 없으므로, 한쪽만 고치면 양쪽 중 하나가 깨지게 둔다.
+    #[test]
+    fn 검증_규칙이_웹과_일치한다() {
+        let raw = include_str!("../../contracts/validation-fixtures.json");
+
+        // URL 고정 입력: {"value": "...", "valid": true|false, ...}
+        let mut checked = 0;
+        for entry in raw.split("{ \"value\":").skip(1) {
+            let value = entry
+                .split('"')
+                .nth(1)
+                .expect("value 를 읽을 수 없음")
+                .replace("\\u0000", "");
+            let expected = entry
+                .split("\"valid\":")
+                .nth(1)
+                .map(|rest| rest.trim_start().starts_with("true"))
+                .expect("valid 를 읽을 수 없음");
+
+            let actual = super::check_url(&value).is_ok();
+            assert_eq!(
+                actual, expected,
+                "URL 판정이 웹과 다릅니다: {value:?} (기대 {expected}, 실제 {actual})"
+            );
+            checked += 1;
+        }
+        assert!(checked >= 10, "고정 입력을 {checked}건만 읽었습니다");
+    }
+}

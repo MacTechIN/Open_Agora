@@ -53,6 +53,30 @@ jobs:
       - name: Kotlin·C# 바인딩 계약 일치 확인
         run: ./scripts/check-binding-parity.sh
 
+  web:
+    name: 웹 빌드·계약 대조
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: 의존성 설치
+        working-directory: web
+        run: npm ci
+      - name: 타입 검사
+        working-directory: web
+        run: npx tsc --noEmit
+      # 검증 규칙이 Rust 코어와 갈리지 않았는지 확인한다.
+      # 한쪽만 고치면 앱에서 통과한 글이 서버에서 거부된다.
+      - name: 계약 대조
+        run: node web/scripts/check-contract.mjs
+      - name: 빌드
+        working-directory: web
+        run: npx next build
+
   immutability:
     name: G-IMMUT 게이트
     runs-on: ubuntu-latest
