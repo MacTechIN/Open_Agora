@@ -1,0 +1,16 @@
+{
+  "_comment": "검증 한도의 단일 출처. Rust 코어와 웹/서버가 같은 값을 쓰도록 여기서만 정의한다. 양쪽에 따로 적으면 반드시 어긋나고, 어긋나면 한쪽에서 통과한 글이 다른 쪽에서 거부된다.",
+  "_spec": "docs/00_PRODUCT_SPEC.md §3, §6",
+  "policy": {
+    "title": 60,
+    "background": 300,
+    "coreQuestion": 100
+  },
+  "card": {
+    "problemDefinition": 150,
+    "evidenceSource": 200,
+    "actionableSolution": 150
+  },
+  "url": 500,
+  "_cardTotal": 500
+}

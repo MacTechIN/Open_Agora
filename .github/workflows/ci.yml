@@ -71,8 +71,10 @@ jobs:
         run: npx tsc --noEmit
       # 검증 규칙이 Rust 코어와 갈리지 않았는지 확인한다.
       # 한쪽만 고치면 앱에서 통과한 글이 서버에서 거부된다.
+      # 복사본이 contracts/ 원본과 같은지도 함께 본다.
       - name: 계약 대조
-        run: node web/scripts/check-contract.mjs
+        working-directory: web
+        run: npm run check:contracts
       - name: 빌드
         working-directory: web
         run: npx next build

@@ -1,0 +1,22 @@
+{
+  "_comment": "검증 규칙이 Rust 코어와 웹에서 일치하는지 확인하는 고정 입력. 규칙은 두 언어로 구현할 수밖에 없으므로, 한쪽만 고치는 일을 이 파일이 막는다.",
+  "urls": [
+    { "value": "https://kostat.go.kr/board.es", "valid": true, "why": "표준 https" },
+    { "value": "http://likms.assembly.go.kr/bill/detail.do", "valid": true, "why": "http도 허용" },
+    { "value": "https://kostat.go.kr/a?b=1#c", "valid": true, "why": "쿼리·프래그먼트 허용" },
+    { "value": "", "valid": false, "why": "근거 URL은 필수" },
+    { "value": "kostat.go.kr", "valid": false, "why": "스킴 없음" },
+    { "value": "ftp://kostat.go.kr", "valid": false, "why": "허용하지 않는 스킴" },
+    { "value": "javascript:alert(1)", "valid": false, "why": "스킴이 아님" },
+    { "value": "https://", "valid": false, "why": "호스트 없음" },
+    { "value": "https://localhost", "valid": false, "why": "점이 없는 호스트" },
+    { "value": "https://kostat go kr", "valid": false, "why": "공백" }
+  ],
+  "graphemes": [
+    { "text": "공론장", "count": 3, "why": "한글 음절" },
+    { "text": "가", "count": 1, "why": "NFD로 분해된 한글도 한 글자" },
+    { "text": "👨‍👩‍👧", "count": 1, "why": "ZWJ로 묶인 이모지는 한 글자" },
+    { "text": "", "count": 0, "why": "빈 문자열" },
+    { "text": "abc 한글", "count": 6, "why": "혼합. 공백 포함" }
+  ]
+}

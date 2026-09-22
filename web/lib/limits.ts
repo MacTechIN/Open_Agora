@@ -4,7 +4,9 @@
  * Rust 코어도 같은 파일을 읽으며, 값이 어긋나면 코어 테스트가 실패한다
  * (core/src/card.rs contract_tests).
  */
-import raw from "../../contracts/limits.json";
+// web 바깥을 import 하면 호스팅 환경에 따라 빌드가 깨진다.
+// scripts/sync-contracts.mjs 가 contracts/ 에서 복사해 둔 것을 읽는다.
+import raw from "./generated/limits.json";
 
 export const LIMITS = {
   policy: raw.policy,

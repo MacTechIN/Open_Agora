@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (name) =>
-  JSON.parse(readFileSync(join(here, "../../contracts", name), "utf8"));
+  JSON.parse(readFileSync(join(here, "../lib/generated", name), "utf8"));
 
 const fixtures = read("validation-fixtures.json");
 const MAX_URL = read("limits.json").url;
