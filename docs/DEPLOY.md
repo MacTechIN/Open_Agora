@@ -32,9 +32,30 @@ postgresql://사용자:비밀번호@ep-xxxx.region.aws.neon.tech/neondb?sslmode=
    최상위에서 Next.js를 찾지 못해 빌드가 실패합니다.
 4. Environment Variables 에 추가합니다.
 
-   | Name | Value |
-   |-|-|
-   | `DATABASE_URL` | Neon에서 복사한 연결 문자열 |
+   | Name | Value | 없으면 |
+   |-|-|-|
+   | `DATABASE_URL` | Neon에서 복사한 연결 문자열 | 주제·의견을 저장할 수 없음 |
+   | `AUTH_SECRET` | **32자 이상 임의 문자열** | 시민 인증이 동작하지 않음 |
+   | `RESEND_API_KEY` | Resend API 키 (선택) | 인증코드가 메일로 안 가고 서버 로그에만 남음 |
+
+   `AUTH_SECRET` 은 이메일 해시에 쓰는 열쇠입니다. **한번 정하면 바꾸지
+   않습니다** — 바꾸면 기존 가입 이메일의 해시와 맞지 않아 같은 사람이 다시
+   가입할 수 있게 됩니다.
+
+   생성 예시:
+
+   ```powershell
+   # PowerShell
+   -join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
+   ```
+
+   ```bash
+   # macOS / Linux
+   openssl rand -hex 24
+   ```
+
+   설정이 제대로 됐는지는 배포 후 `/api/health` 로 확인합니다. 값은 보이지
+   않고 설정 여부만 참/거짓으로 나옵니다.
 
 5. Deploy 를 누릅니다.
 

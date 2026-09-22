@@ -39,11 +39,22 @@ const MAX_REQUESTS_PER_HOUR = 5;
 /** 코드 입력 시도 횟수. 6자리를 무차별 대입하는 것을 막는다. */
 const MAX_ATTEMPTS = 5;
 
+
+/**
+ * 서버 설정이 빠졌을 때.
+ *
+ * 사용자가 고칠 수 없는 문제이므로 AuthError 와 구분한다. 일반 오류로
+ * 묻어버리면 "요청을 처리하지 못했습니다"만 보이고, 운영자도 사용자도
+ * 무엇이 빠졌는지 알 수 없다.
+ */
+export class ConfigError extends Error {}
+
 function secret(): string {
   const value = process.env.AUTH_SECRET;
   if (!value || value.length < 32) {
-    throw new Error(
-      "AUTH_SECRET 이 없거나 너무 짧습니다(32자 이상). 이메일 해시의 안전이 여기에 달려 있습니다."
+    throw new ConfigError(
+      "서버에 인증 설정이 되어 있지 않습니다. 운영자가 AUTH_SECRET 환경변수를 " +
+      "32자 이상으로 설정해야 합니다."
     );
   }
   return value;
