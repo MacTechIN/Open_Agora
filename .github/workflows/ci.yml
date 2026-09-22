@@ -85,6 +85,11 @@ jobs:
       - name: 글쓰기 회원 확인 검사
         working-directory: web
         run: npm run check:writegate
+      # 클라이언트 컴포넌트가 DB 모듈을 끌어오면 브라우저 번들에 Node 전용
+      # 패키지가 딸려와 빌드가 깨진다. 상수 하나 때문에 생기므로 알아채기 어렵다.
+      - name: 클라이언트 import 검사
+        working-directory: web
+        run: npm run check:imports
       - name: 빌드
         working-directory: web
         run: npx next build

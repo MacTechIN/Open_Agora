@@ -113,3 +113,63 @@ button:disabled { background: #2a2f3a; color: #666e7d; cursor: not-allowed; }
 
 .section { margin-bottom: 10px; }
 .notice { border-left: 3px solid var(--accent); padding: 10px 14px; background: #131822; border-radius: 0 6px 6px 0; margin-bottom: 20px; }
+
+/* ── 광장 탐색 ───────────────────────────────────────────────────
+   주제가 수백 개가 되면 문제는 스크롤 길이가 아니라 "무엇을 봐야 할지
+   모른다"는 것이다. 검색·분류·정렬로 좁히고, 훑을 때는 밀도를 높인다. */
+
+.plaza-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
+.plaza-head h2 { margin: 0; font-size: 20px; }
+
+.controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+.search { display: flex; gap: 8px; }
+.search input { flex: 1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 999px; padding: 5px 13px; font-size: 13px; font-weight: 500;
+}
+.chip[data-on="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip .n { opacity: 0.65; margin-left: 3px; font-size: 12px; }
+
+.toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.tabs { display: flex; gap: 2px; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.tab { background: transparent; color: var(--muted); border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.tab[data-on="true"] { background: var(--surface); color: var(--text); }
+
+button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); font-weight: 500; }
+
+a.plain { color: inherit; text-decoration: none; display: block; }
+a.plain:hover .card, a.plain:hover .line { border-color: var(--accent); }
+
+.row-head { display: flex; justify-content: space-between; gap: 12px; }
+.nowrap { white-space: nowrap; }
+
+/* 목록 보기 — 한 줄에 담아 한 화면에 많이 보이게 한다. */
+.line {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 6px;
+}
+.line .dist { width: 90px; margin: 0; flex-shrink: 0; }
+.line-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag {
+  font-size: 11px; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 7px; flex-shrink: 0;
+}
+
+.section-head { font-size: 15px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+/* 한쪽으로 기운 주제. 반대편 의견을 데려오는 것이 이 플랫폼의 목적이므로
+   목록에서부터 참여를 권한다. */
+.balance { color: #d9a441; margin-left: 6px; font-size: 12px; white-space: nowrap; }
+
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 22px; }
+
+@media (max-width: 640px) {
+  .toolbar { flex-direction: column; }
+  .tabs { overflow-x: auto; }
+  .line .dist { width: 56px; }
+}
