@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CountedField, { PlainField } from "./CountedField";
 import { LIMITS, graphemeCount } from "@/lib/limits";
 import { QUESTIONS, STANCE_LABEL, type Stance } from "@/lib/types";
 
@@ -31,29 +32,6 @@ export function opinionReady(v: OpinionValue): boolean {
     ok(v.evidence_source, LIMITS.card.evidenceSource) &&
     ok(v.actionable_solution, LIMITS.card.actionableSolution) &&
     v.evidence_url.trim().length > 0
-  );
-}
-
-function Counted({
-  label, value, limit, onChange, placeholder,
-}: {
-  label: string; value: string; limit: number;
-  onChange: (v: string) => void; placeholder: string;
-}) {
-  const count = graphemeCount(value.trim());
-  const over = count > limit;
-  return (
-    <div className="field">
-      <div className="field-head">
-        <strong>{label}</strong>
-        <span className={over ? "count over" : "count"}>
-          {/* 한도만 보여주면 얼마나 줄여야 할지 알 수 없다. */}
-          {over ? `${count} / ${limit}자 — ${count - limit}자 초과` : `${count} / ${limit}자`}
-        </span>
-      </div>
-      <textarea value={value} placeholder={placeholder}
-                onChange={(e) => onChange(e.target.value)} />
-    </div>
   );
 }
 
@@ -89,27 +67,25 @@ export default function OpinionForm({
         </div>
       </div>
 
-      <Counted label={`① ${q.problem}`} value={value.problem_definition}
-               limit={LIMITS.card.problemDefinition}
-               onChange={(v) => set("problem_definition", v)}
-               placeholder="예) 현행 제도가 모든 업종에 똑같이 적용되어 소상공인에게 과도한 행정 부담을 줍니다." />
+      <CountedField label={`① ${q.problem}`} value={value.problem_definition}
+                    limit={LIMITS.card.problemDefinition}
+                    onChange={(v) => set("problem_definition", v)}
+                    placeholder="예) 현행 제도가 모든 업종에 똑같이 적용되어 소상공인에게 과도한 행정 부담을 줍니다." />
 
-      <Counted label="② 어떤 근거가 있나요?" value={value.evidence_source}
-               limit={LIMITS.card.evidenceSource}
-               onChange={(v) => set("evidence_source", v)}
-               placeholder="예) 통계청 2026년 사업체노동력조사에서 5인 미만 사업장의 행정 부담이 가장 높게 나타났습니다." />
+      <CountedField label="② 어떤 근거가 있나요?" value={value.evidence_source}
+                    limit={LIMITS.card.evidenceSource}
+                    onChange={(v) => set("evidence_source", v)}
+                    placeholder="예) 통계청 2026년 사업체노동력조사에서 5인 미만 사업장의 행정 부담이 가장 높게 나타났습니다." />
 
-      <div className="field">
-        <strong style={{ display: "block", marginBottom: 6 }}>근거 자료의 출처 링크</strong>
-        <input value={value.evidence_url} placeholder="https://kostat.go.kr/..."
-               onChange={(e) => set("evidence_url", e.target.value)} />
-        <div className="hint">통계청, 정부 고시, 국회 의안, 학술 논문 같은 1차 자료를 권합니다.</div>
-      </div>
+      <PlainField label="근거 자료의 출처 링크" value={value.evidence_url}
+                  onChange={(v) => set("evidence_url", v)}
+                  placeholder="https://kostat.go.kr/..."
+                  hint="통계청, 정부 고시, 국회 의안, 학술 논문 같은 1차 자료를 권합니다." />
 
-      <Counted label={`③ ${q.solution}`} value={value.actionable_solution}
-               limit={LIMITS.card.actionableSolution}
-               onChange={(v) => set("actionable_solution", v)}
-               placeholder="예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다." />
+      <CountedField label={`③ ${q.solution}`} value={value.actionable_solution}
+                    limit={LIMITS.card.actionableSolution}
+                    onChange={(v) => set("actionable_solution", v)}
+                    placeholder="예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다." />
     </>
   );
 }

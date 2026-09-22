@@ -10,7 +10,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:components": "node scripts/check-nested-components.mjs"
   },
   "dependencies": {
     "next": "^15.5.25",

@@ -75,6 +75,11 @@ jobs:
       - name: 계약 대조
         working-directory: web
         run: npm run check:contracts
+      # 중첩 컴포넌트는 입력창을 매 글자마다 교체해 한글 조합을 깨뜨린다.
+      # 영문 입력은 멀쩡해 보여 눈으로 찾기 어렵다.
+      - name: 중첩 컴포넌트 검사
+        working-directory: web
+        run: npm run check:components
       - name: 빌드
         working-directory: web
         run: npx next build
