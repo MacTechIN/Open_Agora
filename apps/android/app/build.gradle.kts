@@ -51,6 +51,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // 공유 API 호출을 IO 디스패처로 보낸다. Compose 가 코루틴을 끌어오지만
+    // 버전이 바뀌면 사라질 수 있는 의존이라 직접 적는다.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // uniffi Kotlin 바인딩 런타임 의존성
     implementation("net.java.dev.jna:jna:5.15.0@aar")
 }

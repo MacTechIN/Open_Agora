@@ -54,13 +54,19 @@ fi
 #
 #    대신 실행 가능한 코드 패턴만 본다 — 삭제 API 이름, 저장소 변경 호출,
 #    XAML 삭제 핸들러와 버튼 라벨. 문서가 삭제의 부재를 설명하는 것은 통과한다.
+#
+#    "지우기"는 검색어를 비우는 버튼에도 쓴다. 입력칸을 비우는 것과 남의 글을
+#    지우는 것은 다르므로, 검색·필터 초기화 핸들러에 걸린 것은 통과시킨다.
+#    라벨만 보고 막으면 게이트를 우회하려고 라벨을 바꾸게 되고, 그러면
+#    게이트가 UI 문구를 지배하게 된다.
 ui_hits="$(grep -rnE \
     -e '\b(delete|remove)(Card|Post|Reply|Policy)\b' \
     -e '(_?store|Store)\.(Delete|Remove|Clear)\b' \
     -e 'Click="On(Delete|Remove)' \
     -e 'Content="(삭제|지우기)"' \
     -e 'text = "(삭제|지우기)"' \
-    "$ROOT/apps/android/app/src/main" "$ROOT/apps/windows" 2>/dev/null || true)"
+    "$ROOT/apps/android/app/src/main" "$ROOT/apps/windows" 2>/dev/null \
+    | grep -vE 'On(Clear|Reset)(Search|Filter|Query)' || true)"
 
 if [ -n "$ui_hits" ]; then
     report "앱 코드에 삭제 동작이 있습니다" "$ui_hits"
