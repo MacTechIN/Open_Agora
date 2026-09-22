@@ -48,6 +48,13 @@ export default async function Plaza() {
           글을 쓰려면 시민 ID가 필요하며, 브라우저에서 자동으로 만들어집니다.
           실명과 이메일은 저장하지 않습니다.
         </div>
+        {/* 명세가 약속한 것과 지금 되는 것이 다르면 사용자가 알아야 한다.
+            VS-A4(서명), VS-F6(온체인 앵커)이 끝나면 단계적으로 바뀐다.
+            → docs/15_BRIDGE_SERVER.md §6 */}
+        <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+          현재는 준비 단계입니다. 글은 공유 서버에 저장되며, 위변조 방지 서명과
+          블록체인 기록은 아직 적용되지 않았습니다.
+        </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
