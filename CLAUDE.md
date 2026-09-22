@@ -93,6 +93,9 @@ CivicAgora는 진영 논리와 권위적 개입 없이 시민이 동등한 자�
 | `docs/11_SOVEREIGN_JUDGMENT.md` | **주권 판단 계층.** 제약 채점·정본 재현·모델 앵커링·G-BIAS |
 | `docs/12_ONCHAIN_DEPENDENCIES.md` | 온체인은 대부분 기존 프로토콜로 대체. **자체 신뢰 설정 금지** |
 | `docs/13_VS_C0_FINDINGS.md` | **VS-C0 결과.** ComposeDB 중단으로 데이터 계층 재선정 필요 |
+| `docs/14_USER_JOURNEY.md` | 주제 등록부터 보고서 다운로드까지 전 과정 |
+| `docs/15_BRIDGE_SERVER.md` | 현재 공유 서버 단계의 한계와 벗어나는 순서 |
+| `docs/16_ONCHAIN_PLAN.md` | **블록체인 도입 단계·비용.** 서명 → 앵커링 → 1인1계정 → P2P |
 
 ## 목표 스택 (아직 미설치)
 
