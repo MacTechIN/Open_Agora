@@ -24,6 +24,27 @@ public sealed partial class MainWindow : Window
     private readonly ApiClient _api = new();
     private string? _authorDid;
     private string? _currentPolicyId;
+
+    /// <summary>광장에서 받아 둔 전체 목록. 걸러내기는 화면에서 한다.</summary>
+    private List<PolicySummary> _allPolicies = new();
+    private string _search = "";
+    private PolicyCategory? _categoryFilter;
+
+    /// <summary>정렬 기준. 웹과 같은 순서로 둔다.</summary>
+    private static readonly (string Label, string Key)[] Sorts =
+    {
+        ("활발한 순", "active"),
+        ("균형 필요", "balance"),
+        ("최신순", "recent"),
+        ("의견 많은 순", "opinions"),
+    };
+
+    private static readonly (string Label, string Key)[] Views =
+    {
+        ("카드", "card"),
+        ("목록", "list"),
+        ("분류별", "section"),
+    };
     private OpinionForm? _detailForm;
     private OpinionForm? _newTopicForm;
 
@@ -50,6 +71,17 @@ public sealed partial class MainWindow : Window
 
         foreach (var (_, label) in Categories) CategoryBox.Items.Add(label);
         CategoryBox.SelectedIndex = 0;
+
+        foreach (var (label, _) in Sorts) SortBox.Items.Add(label);
+        SortBox.SelectedIndex = 0;
+        foreach (var (label, _) in Views) ViewBox.Items.Add(label);
+        ViewBox.SelectedIndex = 0;
+
+        // 엔터로도 검색되게 한다. 버튼까지 가는 동작을 요구하지 않는다.
+        SearchBox.KeyDown += (_, e) =>
+        {
+            if (e.Key == global::Windows.System.VirtualKey.Enter) { _search = SearchBox.Text.Trim(); RenderPlaza(); }
+        };
 
         foreach (var box in new[] { TitleBox, BackgroundBox, QuestionBox, SourceBox })
         {
@@ -104,25 +136,238 @@ public sealed partial class MainWindow : Window
         SetBusy(true);
         try
         {
-            var policies = await _api.ListPoliciesAsync();
-            PlazaHeader.Text = policies.Count == 0
-                ? "공론 중인 주제"
-                : $"공론 중인 주제 {policies.Count}건";
-
-            PolicyList.Children.Clear();
-            if (policies.Count == 0)
-            {
-                PolicyList.Children.Add(Caption(
-                    "아직 올라온 주제가 없습니다. 공론화하고 싶은 정책이나 현안을 첫 번째로 올려보세요."));
-                return;
-            }
-            foreach (var summary in policies) PolicyList.Children.Add(RenderPolicy(summary));
+            _allPolicies = await _api.ListPoliciesAsync();
+            RenderPlaza();
         }
         catch (Exception ex)
         {
             Fail("주제를 불러오지 못했습니다", ex);
         }
         finally { SetBusy(false); }
+    }
+
+    // ── 광장 탐색 ──────────────────────────────────────────────────
+
+    private void OnSearch(object sender, RoutedEventArgs e)
+    {
+        _search = SearchBox.Text.Trim();
+        RenderPlaza();
+    }
+
+    private void OnClearSearch(object sender, RoutedEventArgs e)
+    {
+        SearchBox.Text = string.Empty;
+        _search = "";
+        _categoryFilter = null;
+        RenderPlaza();
+    }
+
+    private void OnSortOrViewChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // 생성자에서 항목을 채울 때도 불리므로 준비 전이면 넘어간다.
+        if (PolicyList is null) return;
+        RenderPlaza();
+    }
+
+    /// <summary>
+    /// 한쪽으로 기울었는가.
+    ///
+    /// 웹과 같은 기준을 쓴다(lib/plaza.ts needsBalance). 두 곳이 달라지면
+    /// 같은 주제가 기기마다 다르게 표시된다.
+    /// </summary>
+    private static bool NeedsBalance(PolicySummary s)
+    {
+        var sides = s.supportCount + s.opposeCount;
+        if (sides < 2) return false;
+        return Math.Abs((int)s.supportCount - (int)s.opposeCount) / (double)sides >= 0.6;
+    }
+
+    private static double BalanceScore(PolicySummary s)
+    {
+        var sides = s.supportCount + s.opposeCount;
+        // 0대0 이나 1대0 은 쏠린 것이 아니라 아직 시작하지 않은 것이다.
+        if (sides < 2) return -1;
+        return Math.Abs((int)s.supportCount - (int)s.opposeCount) / (double)sides;
+    }
+
+    /// <summary>검색·분류·정렬을 적용해 목록을 다시 그린다.</summary>
+    private void RenderPlaza()
+    {
+        var query = _search.Trim();
+        IEnumerable<PolicySummary> items = _allPolicies;
+
+        if (query.Length > 0)
+        {
+            // 제목만 보면 "지역화폐"로 검색했을 때 제목에 그 말이 없는 주제를 놓친다.
+            items = items.Where(s =>
+                Contains(s.policy.title, query) ||
+                Contains(s.policy.coreQuestion, query) ||
+                Contains(s.policy.background, query) ||
+                Contains(s.policy.targetAgency, query));
+        }
+        if (_categoryFilter is { } category)
+        {
+            items = items.Where(s => s.policy.category == category);
+        }
+
+        var sortKey = Sorts[Math.Max(0, SortBox.SelectedIndex)].Key;
+        items = sortKey switch
+        {
+            "recent" => items.OrderByDescending(s => s.policy.createdAt),
+            "opinions" => items.OrderByDescending(s => s.supportCount + s.alternativeCount + s.opposeCount)
+                               .ThenByDescending(s => s.lastActivityAt),
+            "balance" => items.OrderByDescending(BalanceScore)
+                              .ThenByDescending(s => s.supportCount + s.alternativeCount + s.opposeCount),
+            _ => items.OrderByDescending(s => s.lastActivityAt),
+        };
+
+        var list = items.ToList();
+        var filtered = query.Length > 0 || _categoryFilter is not null;
+        PlazaHeader.Text = filtered
+            ? $"검색 결과 {list.Count}건"
+            : list.Count > 0 ? $"공론 중인 주제 {list.Count}건" : "공론 중인 주제";
+
+        SortHint.Visibility = sortKey == "balance" ? Visibility.Visible : Visibility.Collapsed;
+        SortHint.Text = "한쪽으로 기운 주제를 먼저 보여줍니다. 반대편 의견이 가장 필요한 곳입니다.";
+
+        RenderChips();
+
+        PolicyList.Children.Clear();
+        if (list.Count == 0)
+        {
+            PolicyList.Children.Add(Caption(filtered
+                ? "조건에 맞는 주제가 없습니다. 검색어를 바꾸거나 분류를 전체로 두고 다시 찾아보세요."
+                : "아직 올라온 주제가 없습니다. 공론화하고 싶은 정책이나 현안을 첫 번째로 올려보세요."));
+            return;
+        }
+
+        var viewKey = Views[Math.Max(0, ViewBox.SelectedIndex)].Key;
+        if (viewKey == "section")
+        {
+            foreach (var group in list.GroupBy(s => s.policy.category))
+            {
+                PolicyList.Children.Add(SectionHeader($"{CategoryLabel(group.Key)}  {group.Count()}"));
+                foreach (var s in group) PolicyList.Children.Add(RenderLine(s));
+            }
+        }
+        else if (viewKey == "list")
+        {
+            foreach (var s in list) PolicyList.Children.Add(RenderLine(s));
+        }
+        else
+        {
+            foreach (var s in list) PolicyList.Children.Add(RenderPolicy(s));
+        }
+    }
+
+    private static bool Contains(string? haystack, string needle) =>
+        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+    private void RenderChips()
+    {
+        CategoryChips.Children.Clear();
+        CategoryChips.Children.Add(Chip("전체", _allPolicies.Count, _categoryFilter is null, () =>
+        {
+            _categoryFilter = null;
+            RenderPlaza();
+        }));
+
+        foreach (var (value, label) in Categories)
+        {
+            var count = _allPolicies.Count(s => s.policy.category == value);
+            // 비어 있는 분류는 숨긴다. 고를 수 없는 것을 보여줄 이유가 없다.
+            if (count == 0 && _categoryFilter != value) continue;
+            var target = value;
+            CategoryChips.Children.Add(Chip(label, count, _categoryFilter == target, () =>
+            {
+                _categoryFilter = target;
+                RenderPlaza();
+            }));
+        }
+    }
+
+    private static Button Chip(string label, int count, bool active, Action onClick)
+    {
+        var button = new Button
+        {
+            Content = $"{label} {count}",
+            Padding = new Thickness(12, 4, 12, 4),
+            CornerRadius = new CornerRadius(999),
+            FontSize = 13,
+        };
+        if (active)
+        {
+            button.Background = new SolidColorBrush(global::Windows.UI.Color.FromArgb(255, 76, 141, 255));
+            button.Foreground = new SolidColorBrush(Colors.White);
+        }
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
+    private static UIElement SectionHeader(string text) => new Border
+    {
+        BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+        BorderThickness = new Thickness(0, 0, 0, 1),
+        Padding = new Thickness(0, 10, 0, 6),
+        Margin = new Thickness(0, 6, 0, 2),
+        Child = new TextBlock { Text = text, FontWeight = FontWeights.SemiBold },
+    };
+
+    /// <summary>목록 보기 — 한 줄로 촘촘하게. 훑을 때는 한 화면에 많이 보이는 편이 낫다.</summary>
+    private UIElement RenderLine(PolicySummary s)
+    {
+        var total = s.supportCount + s.alternativeCount + s.opposeCount;
+        var row = new Grid { ColumnSpacing = 10 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var tag = new Border
+        {
+            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 1, 6, 1),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = Caption(CategoryLabel(s.policy.category)),
+        };
+        Grid.SetColumn(tag, 0);
+        row.Children.Add(tag);
+
+        var title = new TextBlock
+        {
+            Text = s.policy.title,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(title, 1);
+        row.Children.Add(title);
+
+        var bar = Distribution(s, total);
+        if (bar is FrameworkElement element) element.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn((FrameworkElement)bar, 2);
+        row.Children.Add(bar);
+
+        var meta = Caption($"{total}건 · {Ago(s.lastActivityAt)}");
+        meta.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(meta, 3);
+        row.Children.Add(meta);
+
+        var button = new Button
+        {
+            Content = row,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(12, 8, 12, 8),
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+        };
+        var id = s.policy.id;
+        button.Click += (_, _) => { Show(DetailView); _ = LoadDetailAsync(id); };
+        return button;
     }
 
     private UIElement RenderPolicy(PolicySummary summary)
@@ -154,9 +399,24 @@ public sealed partial class MainWindow : Window
         body.Children.Add(Caption(meta));
         body.Children.Add(new TextBlock { Text = p.coreQuestion, TextWrapping = TextWrapping.Wrap });
         body.Children.Add(Distribution(summary, total));
-        body.Children.Add(Caption(
+
+        var footer = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        footer.Children.Add(Caption(
             $"찬성 {summary.supportCount} · 대안 {summary.alternativeCount} · 반대 {summary.opposeCount}" +
             (total > 0 ? $" · 의견 {total}건" : "")));
+        if (NeedsBalance(summary))
+        {
+            // 쏠린 주제에 참여를 권한다. 반대편 의견을 데려오는 것이 목적이므로
+            // 목록에서부터 그 일을 한다.
+            var lacking = summary.supportCount > summary.opposeCount ? "반대" : "찬성";
+            footer.Children.Add(new TextBlock
+            {
+                Text = $"⚖ {lacking} 의견이 필요해요",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(global::Windows.UI.Color.FromArgb(255, 217, 164, 65)),
+            });
+        }
+        body.Children.Add(footer);
 
         var button = new Button
         {

@@ -36,10 +36,47 @@
         <ScrollViewer Grid.Row="1">
             <Grid Padding="28,18,28,40">
 
-                <!-- 광장 -->
-                <StackPanel x:Name="PlazaView" Spacing="12" MaxWidth="900" HorizontalAlignment="Left">
+                <!-- 광장 ────────────────────────────────────────────
+                     주제가 수백 개가 되면 문제는 스크롤 길이가 아니라
+                     "무엇을 봐야 할지 모른다"는 것이다. 웹과 같은 수단을 둔다. -->
+                <StackPanel x:Name="PlazaView" Spacing="12" MaxWidth="1000" HorizontalAlignment="Left">
                     <TextBlock x:Name="PlazaHeader" Style="{StaticResource SubtitleTextBlockStyle}" />
-                    <StackPanel x:Name="PolicyList" Spacing="10" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="SearchBox" Width="360"
+                                 PlaceholderText="주제·쟁점 질문·기관 검색" />
+                        <Button Content="검색" Click="OnSearch" />
+                        <Button Content="지우기" Click="OnClearSearch" />
+                    </StackPanel>
+
+                    <!-- 분류 칩. 개수를 함께 보여 어디에 무엇이 있는지 알린다.
+                         WrapPanel 은 WinUI 3 기본에 없어 CommunityToolkit 이
+                         필요하다. 의존성을 늘리지 않고 가로 스크롤로 둔다. -->
+                    <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="CategoryChips" Orientation="Horizontal" Spacing="6" />
+                    </ScrollViewer>
+
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="정렬" VerticalAlignment="Center"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                            <ComboBox x:Name="SortBox" SelectedIndex="0" MinWidth="140"
+                                      SelectionChanged="OnSortOrViewChanged" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="보기" VerticalAlignment="Center"
+                                       Style="{StaticResource CaptionTextBlockStyle}" />
+                            <ComboBox x:Name="ViewBox" SelectedIndex="0" MinWidth="110"
+                                      SelectionChanged="OnSortOrViewChanged" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <TextBlock x:Name="SortHint" TextWrapping="Wrap" Visibility="Collapsed"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <StackPanel x:Name="PolicyList" Spacing="8" />
                 </StackPanel>
 
                 <!-- 주제 상세 -->

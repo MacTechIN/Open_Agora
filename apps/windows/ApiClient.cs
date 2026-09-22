@@ -34,7 +34,16 @@ public sealed class ApiClient
         Timeout = TimeSpan.FromSeconds(20),
     };
 
-    public sealed record Failure(string Message) : Exception(Message);
+    /// <summary>
+    /// 통신 실패.
+    ///
+    /// record 로 두면 CS8864 가 난다 — record 는 object 나 다른 record 만
+    /// 상속할 수 있고 Exception 은 둘 다 아니다.
+    /// </summary>
+    public sealed class Failure : Exception
+    {
+        public Failure(string message) : base(message) { }
+    }
 
     private async Task<string> SendAsync(HttpMethod method, string path, string? body = null)
     {
