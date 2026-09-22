@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
@@ -11,25 +12,32 @@ using CivicAgora.Core;
 namespace CivicAgora.Windows;
 
 /// <summary>
-/// VS-A3 — 로컬 카드 작성과 조회.
+/// 공론장 창.
 ///
-/// 이 단계의 스텁: P2P 전파 없음(로컬 SQLite만), 서명 없음, 톤 코칭 없음.
-/// 각각 VS-B1, VS-A4, VS-E1에서 붙는다.
+/// 광장 → 주제 상세 → 의견 순으로 이동한다. 주제 없이 의견만 받는 것은
+/// 말이 되지 않는다 — 찬반은 주제가 아니라 **쟁점 질문**에 대한 것이다.
 ///
-/// 목록은 XAML 데이터 템플릿 대신 코드에서 구성한다. 항목 수가 적고, 3열
-/// 배치(VS-D1)에서 레이아웃이 크게 바뀔 예정이므로 템플릿을 미리 굳히지 않는다.
-///
-/// 작업 단위: docs/09_DEVELOPMENT_PLAN.md VS-A3
+/// 명세: docs/14_USER_JOURNEY.md
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    /// <summary>필드별 한도. 코어 상수와 같아야 한다.</summary>
-    private const int MaxProblem = 150;
-    private const int MaxEvidence = 200;
-    private const int MaxSolution = 150;
-
-    private CardStore? _store;
+    private readonly ApiClient _api = new();
     private string? _authorDid;
+    private string? _currentPolicyId;
+    private OpinionForm? _detailForm;
+    private OpinionForm? _newTopicForm;
+
+    /// <summary>분류 표시 이름. 코어 열거값과 순서를 맞춘다.</summary>
+    private static readonly (PolicyCategory Value, string Label)[] Categories =
+    {
+        (PolicyCategory.GovPolicy, "정부정책"),
+        (PolicyCategory.Legislation, "입법안"),
+        (PolicyCategory.PartyPolicy, "정당정책"),
+        (PolicyCategory.Local, "지자체"),
+        (PolicyCategory.PublicOrg, "공공기관"),
+        (PolicyCategory.SocialIssue, "사회현안"),
+        (PolicyCategory.Whistleblow, "문제고발"),
+    };
 
     public MainWindow()
     {
@@ -37,45 +45,341 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         StartupLog.Write("MainWindow InitializeComponent 완료");
 
-        // 처음 여는 사람이 내용을 다 보려면 어느 정도 높이가 필요하다.
-        // 작은 창으로 열리면 입력 칸이 잘려 무엇을 해야 할지 알기 어렵다.
-        try { AppWindow.Resize(new global::Windows.Graphics.SizeInt32(980, 1000)); }
+        try { AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1180, 1000)); }
         catch { /* 창 크기 지정 실패가 실행을 막아서는 안 된다 */ }
 
-        HintText.Text = "글은 한 번 올리면 수정하거나 지울 수 없습니다. " +
-                        "누구도 기록을 바꿀 수 없게 만든 공론장이기 때문입니다.";
+        foreach (var (_, label) in Categories) CategoryBox.Items.Add(label);
+        CategoryBox.SelectedIndex = 0;
 
-        ShowCore();
+        foreach (var box in new[] { TitleBox, BackgroundBox, QuestionBox, SourceBox })
+        {
+            box.TextChanged += (_, _) => RevalidateTopic();
+        }
+
+        _detailForm = new OpinionForm("의견 등록하기");
+        _detailForm.Submitted += draft => _ = SubmitOpinionAsync(draft);
+        OpinionFormHost.Content = _detailForm;
+
+        _newTopicForm = new OpinionForm("주제 올리기");
+        _newTopicForm.Submitted += draft => _ = SubmitTopicAsync(draft);
+        NewTopicFormHost.Content = _newTopicForm;
+
         ShowIdentity();
-        OpenStore();
-
-        // 글자 수를 코어와 같은 기준으로 센다. UI가 따로 세면 한글 분해나
-        // 이모지 조합에서 기준이 갈려, 화면은 149자인데 제출이 거부된다.
-        ProblemBox.TextChanged += (_, _) => Revalidate();
-        EvidenceBox.TextChanged += (_, _) => Revalidate();
-        SolutionBox.TextChanged += (_, _) => Revalidate();
-        UrlBox.TextChanged += (_, _) => Revalidate();
-        Revalidate();
+        ShowCore();
+        RevalidateTopic();
+        _ = LoadPlazaAsync();
     }
 
-    private void ShowCore()
+    // ── 화면 전환 ──────────────────────────────────────────────────
+
+    private void Show(StackPanel view)
     {
+        foreach (var panel in new[] { PlazaView, DetailView, NewTopicView, MemberView })
+        {
+            panel.Visibility = ReferenceEquals(panel, view) ? Visibility.Visible : Visibility.Collapsed;
+        }
+        Notice.IsOpen = false;
+    }
+
+    private void OnGoPlaza(object sender, RoutedEventArgs e) { Show(PlazaView); _ = LoadPlazaAsync(); }
+    private void OnGoNewTopic(object sender, RoutedEventArgs e) => Show(NewTopicView);
+    private void OnGoMember(object sender, RoutedEventArgs e) => Show(MemberView);
+
+    private void OnRefresh(object sender, RoutedEventArgs e)
+    {
+        if (DetailView.Visibility == Visibility.Visible && _currentPolicyId is not null)
+        {
+            _ = LoadDetailAsync(_currentPolicyId);
+        }
+        else
+        {
+            _ = LoadPlazaAsync();
+        }
+    }
+
+    // ── 광장 ───────────────────────────────────────────────────────
+
+    private async Task LoadPlazaAsync()
+    {
+        SetBusy(true);
         try
         {
-            StartupLog.Write("코어 호출 시도");
-            var info = CivicagoraMethods.CoreInfo();
-            StartupLog.Write("코어 호출 성공", info.version);
-            CoreText.Text = $"CivicAgora {info.version} (Windows 64비트)";
+            var policies = await _api.ListPoliciesAsync();
+            PlazaHeader.Text = policies.Count == 0
+                ? "공론 중인 주제"
+                : $"공론 중인 주제 {policies.Count}건";
+
+            PolicyList.Children.Clear();
+            if (policies.Count == 0)
+            {
+                PolicyList.Children.Add(Caption(
+                    "아직 올라온 주제가 없습니다. 공론화하고 싶은 정책이나 현안을 첫 번째로 올려보세요."));
+                return;
+            }
+            foreach (var summary in policies) PolicyList.Children.Add(RenderPolicy(summary));
         }
         catch (Exception ex)
         {
-            StartupLog.WriteException("코어 호출", ex);
-            CoreText.Text = "프로그램 구성 요소를 불러오지 못했습니다.";
-            ShowNotice("프로그램을 여는 데 문제가 있습니다",
-                       $"{ex.Message}\n\n압축을 푼 폴더 전체를 그대로 두고 실행해 주세요.",
-                       InfoBarSeverity.Error);
+            Fail("주제를 불러오지 못했습니다", ex);
         }
+        finally { SetBusy(false); }
     }
+
+    private UIElement RenderPolicy(PolicySummary summary)
+    {
+        var p = summary.policy;
+        var total = summary.supportCount + summary.alternativeCount + summary.opposeCount;
+
+        var body = new StackPanel { Spacing = 8 };
+
+        var head = new Grid();
+        head.Children.Add(new TextBlock
+        {
+            Text = p.title,
+            FontSize = 17,
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        head.Children.Add(new TextBlock
+        {
+            Text = Ago(summary.lastActivityAt),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Colors.Gray),
+        });
+        body.Children.Add(head);
+
+        var meta = CategoryLabel(p.category) + (string.IsNullOrEmpty(p.targetAgency) ? "" : $" · {p.targetAgency}");
+        body.Children.Add(Caption(meta));
+        body.Children.Add(new TextBlock { Text = p.coreQuestion, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(Distribution(summary, total));
+        body.Children.Add(Caption(
+            $"찬성 {summary.supportCount} · 대안 {summary.alternativeCount} · 반대 {summary.opposeCount}" +
+            (total > 0 ? $" · 의견 {total}건" : "")));
+
+        var button = new Button
+        {
+            Content = body,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(16),
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+        };
+        button.Click += (_, _) => { Show(DetailView); _ = LoadDetailAsync(p.id); };
+        return button;
+    }
+
+    /// <summary>찬반 분포 막대. 가운데가 대안이다.</summary>
+    private static UIElement Distribution(PolicySummary s, uint total)
+    {
+        var bar = new Grid { Height = 8, CornerRadius = new CornerRadius(4), MinWidth = 200 };
+        if (total == 0)
+        {
+            bar.Background = new SolidColorBrush(global::Windows.UI.Color.FromArgb(255, 34, 38, 47));
+            return bar;
+        }
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(s.supportCount, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(s.alternativeCount, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(s.opposeCount, GridUnitType.Star) });
+
+        for (var i = 0; i < 3; i++)
+        {
+            var fill = new Border { Background = new SolidColorBrush(StanceColor((StanceType)i)) };
+            Grid.SetColumn(fill, i);
+            bar.Children.Add(fill);
+        }
+        return bar;
+    }
+
+    // ── 주제 상세 ──────────────────────────────────────────────────
+
+    private async Task LoadDetailAsync(string policyId)
+    {
+        _currentPolicyId = policyId;
+        SetBusy(true);
+        try
+        {
+            var policies = await _api.ListPoliciesAsync();
+            var summary = policies.FirstOrDefault(s => s.policy.id == policyId);
+            if (summary is null) { Notice.Title = "주제를 찾지 못했습니다"; Notice.IsOpen = true; return; }
+
+            var p = summary.policy;
+            DetailTitle.Text = p.title;
+            DetailMeta.Text = CategoryLabel(p.category) +
+                              (string.IsNullOrEmpty(p.targetAgency) ? "" : $" · {p.targetAgency}");
+            DetailQuestion.Text = p.coreQuestion;
+            DetailBackground.Text = p.background;
+            OpinionQuestion.Text = p.coreQuestion;
+
+            var opinions = await _api.ListOpinionsAsync(policyId);
+            OpinionHeader.Text = $"의견 {opinions.Count}건";
+
+            Fill(SupportColumn, "찬성", StanceType.Support, opinions);
+            Fill(AlternativeColumn, "대안 · 합의", StanceType.Alternative, opinions);
+            Fill(OpposeColumn, "반대", StanceType.Oppose, opinions);
+        }
+        catch (Exception ex)
+        {
+            Fail("주제를 불러오지 못했습니다", ex);
+        }
+        finally { SetBusy(false); }
+    }
+
+    private static void Fill(StackPanel column, string label, StanceType stance, List<DebateCard> all)
+    {
+        var mine = all.Where(c => c.stance == stance).ToList();
+        column.Children.Clear();
+
+        column.Children.Add(new Border
+        {
+            Background = new SolidColorBrush(StanceColor(stance)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(6),
+            Child = new TextBlock
+            {
+                Text = $"{label} {mine.Count}",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = new SolidColorBrush(Colors.White),
+                FontWeight = FontWeights.SemiBold,
+            },
+        });
+
+        if (mine.Count == 0)
+        {
+            column.Children.Add(Caption("아직 없습니다"));
+            return;
+        }
+        foreach (var card in mine) column.Children.Add(RenderOpinion(card));
+    }
+
+    private static UIElement RenderOpinion(DebateCard card)
+    {
+        var body = new StackPanel { Spacing = 6 };
+        body.Children.Add(Section("논점", card.problemDefinition));
+        body.Children.Add(Section("근거", card.evidenceSource));
+        body.Children.Add(new TextBlock
+        {
+            Text = card.evidenceUrl,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Colors.SteelBlue),
+        });
+        body.Children.Add(Section("제안", card.actionableSolution));
+        // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
+        body.Children.Add(Caption($"작성자 {Shorten(card.authorDid)}"));
+
+        return new Border
+        {
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
+            Child = body,
+        };
+    }
+
+    private async Task SubmitOpinionAsync(DraftCard draft)
+    {
+        if (_currentPolicyId is null || !RequireIdentity()) return;
+        SetBusy(true);
+        _detailForm?.SetBusy(true);
+        try
+        {
+            await _api.AddOpinionAsync(_currentPolicyId, draft, _authorDid!);
+            _detailForm?.Clear();
+            await LoadDetailAsync(_currentPolicyId);
+        }
+        catch (Exception ex)
+        {
+            Fail("의견을 올리지 못했습니다", ex);
+        }
+        finally { SetBusy(false); _detailForm?.SetBusy(false); }
+    }
+
+    // ── 주제 올리기 ────────────────────────────────────────────────
+
+    private void RevalidateTopic()
+    {
+        ShowCount(TitleCount, TitleBox.Text, 60);
+        ShowCount(BackgroundCount, BackgroundBox.Text, 300);
+        ShowCount(QuestionCount, QuestionBox.Text, 100);
+    }
+
+    private async Task SubmitTopicAsync(DraftCard firstOpinion)
+    {
+        if (!RequireIdentity()) return;
+
+        var category = Categories[Math.Max(0, CategoryBox.SelectedIndex)].Value;
+        var policy = new DraftPolicy(
+            TitleBox.Text.Trim(),
+            category,
+            BackgroundBox.Text.Trim(),
+            QuestionBox.Text.Trim(),
+            SourceBox.Text.Trim(),
+            string.IsNullOrWhiteSpace(AgencyBox.Text) ? null : AgencyBox.Text.Trim());
+
+        SetBusy(true);
+        _newTopicForm?.SetBusy(true);
+        try
+        {
+            var id = await _api.OpenPolicyAsync(policy, firstOpinion, _authorDid!);
+            TitleBox.Text = BackgroundBox.Text = QuestionBox.Text = SourceBox.Text = AgencyBox.Text = string.Empty;
+            _newTopicForm?.Clear();
+            Show(DetailView);
+            await LoadDetailAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Fail("주제를 올리지 못했습니다", ex);
+        }
+        finally { SetBusy(false); _newTopicForm?.SetBusy(false); }
+    }
+
+    // ── 시민 인증 ──────────────────────────────────────────────────
+
+    private async void OnRequestCode(object sender, RoutedEventArgs e)
+    {
+        SetBusy(true);
+        try
+        {
+            await _api.RequestCodeAsync(EmailBox.Text.Trim());
+            CodePanel.Visibility = Visibility.Visible;
+            MemberStatus.Text = "인증코드를 보냈습니다. 메일함을 확인해 주세요.";
+        }
+        catch (Exception ex) { Fail("인증코드를 보내지 못했습니다", ex); }
+        finally { SetBusy(false); }
+    }
+
+    private async void OnVerify(object sender, RoutedEventArgs e)
+    {
+        if (!RequireIdentity()) return;
+        SetBusy(true);
+        try
+        {
+            await _api.VerifyAsync(EmailBox.Text.Trim(), CodeBox.Text.Trim(), _authorDid!);
+            MemberStatus.Text = "인증이 끝났습니다. 이제 글을 쓸 수 있습니다.";
+            CodePanel.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception ex) { Fail("인증에 실패했습니다", ex); }
+        finally { SetBusy(false); }
+    }
+
+    private bool RequireIdentity()
+    {
+        if (_authorDid is not null) return true;
+        Notice.Title = "시민 ID를 만들지 못했습니다";
+        Notice.Message = "글을 쓰려면 시민 ID가 필요합니다. 「시민 인증」에서 확인해 주세요.";
+        Notice.Severity = InfoBarSeverity.Error;
+        Notice.IsOpen = true;
+        return false;
+    }
+
+    // ── 신원·코어 정보 ─────────────────────────────────────────────
 
     private void ShowIdentity()
     {
@@ -95,186 +399,60 @@ public sealed partial class MainWindow : Window
             StartupLog.WriteException("신원 생성", ex);
             DidText.Text = "만들지 못했습니다";
             ProtectionText.Text = ex.Message;
-            ShowNotice("시민 ID를 만들지 못했습니다",
-                       "의견을 쓰려면 시민 ID가 필요합니다. " + ex.Message,
-                       InfoBarSeverity.Error);
         }
     }
 
-    private void OpenStore()
+    private void ShowCore()
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "CivicAgora");
-            Directory.CreateDirectory(dir);
-            _store = new CardStore(Path.Combine(dir, "cards.db"));
-            StartupLog.Write("저장소 열기 성공", dir);
-            Reload();
+            var info = CivicagoraMethods.CoreInfo();
+            CoreText.Text = $"CivicAgora {info.version} (Windows 64비트)";
         }
         catch (Exception ex)
         {
-            StartupLog.WriteException("저장소 열기", ex);
-            ShowNotice("저장 공간을 열지 못했습니다",
-                       $"작성한 의견을 저장할 수 없습니다. {ex.Message}",
-                       InfoBarSeverity.Error);
+            StartupLog.WriteException("코어 호출", ex);
+            CoreText.Text = "프로그램 구성 요소를 불러오지 못했습니다.";
         }
     }
 
-    /// <summary>글자 수를 갱신하고 제출 가능 여부를 판정한다.</summary>
-    private void Revalidate()
+    // ── 도우미 ─────────────────────────────────────────────────────
+
+    private void SetBusy(bool busy) =>
+        Busy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// 오류를 알린다.
+    ///
+    /// 서버가 보낸 안내("논점이 150자를 넘습니다")는 그대로 보여준다.
+    /// 사용자가 고칠 수 있는 내용이므로 가공하지 않는다.
+    /// </summary>
+    private void Fail(string title, Exception ex)
     {
-        var problem = Count(ProblemBox.Text);
-        var evidence = Count(EvidenceBox.Text);
-        var solution = Count(SolutionBox.Text);
-
-        Show(ProblemCount, problem, MaxProblem);
-        Show(EvidenceCount, evidence, MaxEvidence);
-        Show(SolutionCount, solution, MaxSolution);
-
-        // 한도를 넘으면 버튼을 막는다. 코어가 다시 검증하지만, 넘긴 뒤에
-        // 거부당하는 것보다 미리 막는 편이 낫다.
-        SubmitButton.IsEnabled =
-            _store is not null && _authorDid is not null &&
-            problem > 0 && problem <= MaxProblem &&
-            evidence > 0 && evidence <= MaxEvidence &&
-            solution > 0 && solution <= MaxSolution &&
-            !string.IsNullOrWhiteSpace(UrlBox.Text);
+        Notice.Title = title;
+        Notice.Message = ex.Message;
+        Notice.Severity = InfoBarSeverity.Error;
+        Notice.IsOpen = true;
     }
 
-    private static int Count(string? text) =>
-        string.IsNullOrEmpty(text) ? 0 : (int)CivicagoraMethods.GraphemeCount(text.Trim());
-
-    private static void Show(TextBlock target, int count, int limit)
+    private static void ShowCount(TextBlock target, string? text, int limit)
     {
+        var count = string.IsNullOrEmpty(text) ? 0 : (int)CivicagoraMethods.GraphemeCount(text.Trim());
         var over = count > limit;
-        // 넘긴 만큼을 알려준다. 한도만 보여주면 얼마나 줄여야 할지 알 수 없다.
         target.Text = over ? $"{count} / {limit}자 — {count - limit}자 초과" : $"{count} / {limit}자";
         target.Foreground = new SolidColorBrush(over ? Colors.Crimson : Colors.Gray);
     }
 
-    private void OnSubmit(object sender, RoutedEventArgs e)
+    private static string CategoryLabel(PolicyCategory category) =>
+        Categories.FirstOrDefault(c => c.Value == category).Label ?? "기타";
+
+    /// <summary>좌우 어느 쪽도 우대하지 않도록 채도를 맞춘다.</summary>
+    private static global::Windows.UI.Color StanceColor(StanceType stance) => stance switch
     {
-        if (_store is null || _authorDid is null) return;
-
-        var draft = new DraftCard(
-            SelectedStance(),
-            ProblemBox.Text.Trim(),
-            EvidenceBox.Text.Trim(),
-            UrlBox.Text.Trim(),
-            SolutionBox.Text.Trim());
-
-        try
-        {
-            _store.Add(draft, _authorDid, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-            ErrorText.Visibility = Visibility.Collapsed;
-            // 제출 후 초기화. 스탠스는 유지한다 — 같은 입장으로 연달아 쓰는
-            // 경우가 많다.
-            ProblemBox.Text = EvidenceBox.Text = UrlBox.Text = SolutionBox.Text = string.Empty;
-            Reload();
-        }
-        catch (Exception ex)
-        {
-            // 검증 실패 이유를 그대로 보여준다. 코어가 어느 칸이 몇 자
-            // 넘었는지까지 알려주므로 가공하지 않는다.
-            ErrorText.Text = ex.Message;
-            ErrorText.Visibility = Visibility.Visible;
-        }
-    }
-
-    private StanceType SelectedStance()
-    {
-        if (StanceOppose.IsChecked == true) return StanceType.Oppose;
-        if (StanceAlternative.IsChecked == true) return StanceType.Alternative;
-        return StanceType.Support;
-    }
-
-    private void Reload()
-    {
-        if (_store is null) return;
-        try
-        {
-            var cards = _store.List();
-            ListHeader.Text = cards.Count == 0 ? "등록된 의견" : $"등록된 의견 {cards.Count}건";
-            CardsPanel.Children.Clear();
-            if (cards.Count == 0)
-            {
-                CardsPanel.Children.Add(Caption(
-                    "아직 등록된 의견이 없습니다. 위에서 첫 의견을 남겨보세요."));
-                return;
-            }
-            foreach (var card in cards)
-            {
-                CardsPanel.Children.Add(Render(card));
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowNotice("의견 목록을 읽지 못했습니다", ex.Message, InfoBarSeverity.Error);
-        }
-    }
-
-    private static UIElement Render(DebateCard card)
-    {
-        var body = new StackPanel { Spacing = 6 };
-
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        header.Children.Add(Badge(card.stance));
-        header.Children.Add(Caption(
-            DateTimeOffset.FromUnixTimeMilliseconds(card.createdAt).LocalDateTime
-                .ToString("MM-dd HH:mm")));
-        body.Children.Add(header);
-
-        body.Children.Add(Section("문제 정의", card.problemDefinition));
-        body.Children.Add(Section("근거", card.evidenceSource));
-        body.Children.Add(new TextBlock
-        {
-            Text = card.evidenceUrl,
-            FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Colors.SteelBlue),
-        });
-        body.Children.Add(Section("해결책", card.actionableSolution));
-        // 필명 체계는 VS-C3에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
-        body.Children.Add(Caption($"작성자 {Shorten(card.authorDid)}"));
-
-        return new Border
-        {
-            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(14),
-            Child = body,
-        };
-    }
-
-    private static UIElement Badge(StanceType stance)
-    {
-        // 네임스페이스가 CivicAgora.Windows이므로 Windows.UI는
-        // CivicAgora.Windows.UI로 해석된다. global:: 로 명시해야 한다.
-        var (label, color) = stance switch
-        {
-            // 좌우 어느 쪽도 우대하지 않도록 채도를 맞춘다.
-            StanceType.Support => ("찬성", global::Windows.UI.Color.FromArgb(255, 46, 125, 111)),
-            StanceType.Alternative => ("대안", global::Windows.UI.Color.FromArgb(255, 106, 90, 205)),
-            _ => ("반대", global::Windows.UI.Color.FromArgb(255, 158, 91, 74)),
-        };
-        return new Border
-        {
-            Background = new SolidColorBrush(color),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(8, 2, 8, 2),
-            Child = new TextBlock
-            {
-                Text = label,
-                FontSize = 12,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Colors.White),
-            },
-        };
-    }
+        StanceType.Support => global::Windows.UI.Color.FromArgb(255, 46, 125, 111),
+        StanceType.Alternative => global::Windows.UI.Color.FromArgb(255, 106, 90, 205),
+        _ => global::Windows.UI.Color.FromArgb(255, 158, 91, 74),
+    };
 
     private static UIElement Section(string label, string value)
     {
@@ -292,21 +470,14 @@ public sealed partial class MainWindow : Window
         Foreground = new SolidColorBrush(Colors.Gray),
     };
 
-    private static string Shorten(string did) =>
-        did.Length <= 26 ? did : did[..26] + "…";
+    private static string Shorten(string did) => did.Length <= 24 ? did : did[..24] + "…";
 
-    /// <summary>
-    /// 문제를 화면 위쪽에 눈에 띄게 알린다.
-    ///
-    /// 예외 종류 같은 개발자용 문자열 대신 무엇이 안 되는지와 무엇을 하면
-    /// 되는지를 적는다. 다만 원인 메시지는 남겨둔다 — 문의가 들어왔을 때
-    /// 그것 없이는 진단할 수 없다.
-    /// </summary>
-    private void ShowNotice(string title, string message, InfoBarSeverity severity)
+    private static string Ago(long epochMillis)
     {
-        Notice.Title = title;
-        Notice.Message = message;
-        Notice.Severity = severity;
-        Notice.IsOpen = true;
+        var minutes = (DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds(epochMillis)).TotalMinutes;
+        if (minutes < 1) return "방금";
+        if (minutes < 60) return $"{(int)minutes}분 전";
+        if (minutes < 1440) return $"{(int)(minutes / 60)}시간 전";
+        return $"{(int)(minutes / 1440)}일 전";
     }
 }
