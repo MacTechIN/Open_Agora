@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { migrate, requireDb } from "@/lib/db";
 import { contentId, validateCard, ValidationError } from "@/lib/validate";
 import { fail } from "@/lib/api";
+import { isMember, migrateAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,13 @@ export async function POST(
     const card = validateCard(body);
 
     await migrate();
+    await migrateAuth();
+
+    // 등록된 시민만 글을 쓸 수 있다 (app/api/policies/route.ts 와 같은 이유).
+    if (!(await isMember(authorDid))) {
+      throw new ValidationError("글을 쓰려면 먼저 시민 인증을 해 주세요.");
+    }
+
     const db = requireDb();
     // 없는 주제에 의견을 달면 어디에도 보이지 않는 글이 된다.
     const [policy] = await db`SELECT id FROM policies WHERE id = ${id}`;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { migrate, requireDb } from "@/lib/db";
 import { contentId, validateCard, validatePolicy, ValidationError } from "@/lib/validate";
 import { fail, normalize } from "@/lib/api";
+import { isMember, migrateAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,12 @@ export async function POST(request: NextRequest) {
     const now = Date.now();
 
     await migrate();
+    await migrateAuth();
+
+    // 등록된 시민만 글을 쓸 수 있다. 신원 자체는 익명이지만 아무나 쓸 수는 없다.
+    if (!(await isMember(authorDid))) {
+      throw new ValidationError("글을 쓰려면 먼저 시민 인증을 해 주세요.");
+    }
 
     const policyId = await contentId([
       authorDid, String(now), policy.title, policy.background, policy.core_question,

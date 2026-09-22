@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "check:components": "node scripts/check-nested-components.mjs"
+    "check:components": "node scripts/check-nested-components.mjs",
+    "check:writegate": "node scripts/check-write-gate.mjs"
   },
   "dependencies": {
     "next": "^15.5.25",
