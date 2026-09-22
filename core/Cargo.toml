@@ -18,6 +18,9 @@ uniffi = { version = "0.28.3", features = ["cli"] }
 thiserror = "1"
 p256 = { version = "0.13", features = ["ecdsa"] }
 bs58 = "0.5"
+rusqlite = { version = "0.32", features = ["bundled"] }
+unicode-segmentation = "1"
+sha2 = "0.10"
 
 [build-dependencies]
 uniffi = { version = "0.28.3", features = ["build"] }

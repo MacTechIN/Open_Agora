@@ -53,6 +53,14 @@ jobs:
       - name: Kotlin·C# 바인딩 계약 일치 확인
         run: ./scripts/check-binding-parity.sh
 
+  immutability:
+    name: G-IMMUT 게이트
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 삭제 경로 부재 확인
+        run: ./scripts/check-immutability.sh
+
   moderation:
     name: 톤 코칭 판단 계층 테스트
     runs-on: ubuntu-latest
