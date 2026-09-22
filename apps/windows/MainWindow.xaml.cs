@@ -471,6 +471,7 @@ public sealed partial class MainWindow : Window
             DetailTitle.Text = p.title;
             DetailMeta.Text = CategoryLabel(p.category) +
                               (string.IsNullOrEmpty(p.targetAgency) ? "" : $" · {p.targetAgency}");
+            DetailMeta.Text += "   " + SignatureText(CivicagoraMethods.CheckPolicy(p));
             DetailQuestion.Text = p.coreQuestion;
             DetailBackground.Text = p.background;
             OpinionQuestion.Text = p.coreQuestion;
@@ -529,8 +530,12 @@ public sealed partial class MainWindow : Window
             Foreground = new SolidColorBrush(Colors.SteelBlue),
         });
         body.Children.Add(Section("제안", card.actionableSolution));
+
+        var footer = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
-        body.Children.Add(Caption($"작성자 {Shorten(card.authorDid)}"));
+        footer.Children.Add(Caption($"작성자 {Shorten(card.authorDid)}"));
+        footer.Children.Add(SignatureBadge(CivicagoraMethods.CheckOpinion(card)));
+        body.Children.Add(footer);
 
         return new Border
         {
@@ -729,6 +734,38 @@ public sealed partial class MainWindow : Window
         TextWrapping = TextWrapping.Wrap,
         Foreground = new SolidColorBrush(Colors.Gray),
     };
+
+    /// <summary>
+    /// 서명 상태 문구 (VS-A4).
+    ///
+    /// 「검증됨」을 크게 자랑하지 않는다. 서명은 **글이 바뀌지 않았다**는 것만
+    /// 말하고, 글이 사실이라는 뜻은 아니다. 대신 검증 실패는 눈에 띄게 한다 —
+    /// 그것은 반드시 봐야 하는 신호다.
+    /// </summary>
+    private static string SignatureText(SignatureStatus status) => status switch
+    {
+        SignatureStatus.Valid => "✓ 서명 확인",
+        SignatureStatus.Unsigned => "서명 없음",
+        SignatureStatus.Invalid => "⚠ 서명 불일치",
+        _ => "⚠ 서명 형식 오류",
+    };
+
+    private static TextBlock SignatureBadge(SignatureStatus status)
+    {
+        var color = status switch
+        {
+            SignatureStatus.Valid => global::Windows.UI.Color.FromArgb(255, 75, 158, 127),
+            SignatureStatus.Unsigned => global::Windows.UI.Color.FromArgb(255, 138, 143, 152),
+            SignatureStatus.Invalid => global::Windows.UI.Color.FromArgb(255, 217, 107, 91),
+            _ => global::Windows.UI.Color.FromArgb(255, 217, 164, 65),
+        };
+        return new TextBlock
+        {
+            Text = SignatureText(status),
+            FontSize = 12,
+            Foreground = new SolidColorBrush(color),
+        };
+    }
 
     private static string Shorten(string did) => did.Length <= 24 ? did : did[..24] + "…";
 

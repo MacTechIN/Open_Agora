@@ -80,16 +80,46 @@ actor ApiClient {
     }
 
     /// 주제를 열고 첫 의견을 함께 등록한다.
+    ///
+    /// 보내기 전에 기기 키로 서명한다(VS-A4). 서버가 글을 고치면 이 서명이
+    /// 깨지므로 고친 사실이 드러난다.
     func openPolicy(policy: DraftPolicy, firstOpinion: DraftCard, authorDid: String) async throws -> String {
+        // 시각을 여기서 정한다. 서명이 시각을 덮으려면 서명하는 쪽이 그 값을
+        // 알아야 하기 때문이다. 서버가 정하면 서버가 시각을 바꿔도 검증이 통과한다.
+        let createdAt = Int64(Date().timeIntervalSince1970 * 1000)
+
+        // 서명 대상 바이트는 코어가 만든다. 플랫폼이 각자 조립하면 바이트 한
+        // 칸이 어긋나고, 그 버그는 검증 실패로만 나타나 원인을 찾기 어렵다.
+        let policySignature = try DeviceIdentity.sign(
+            message: try policySigningPayload(policy: policy, authorDid: authorDid, createdAt: createdAt)
+        )
+
+        // 첫 의견의 서명은 주제 식별자를 덮어야 한다. 그러지 않으면 같은
+        // 서명을 다른 주제에 옮겨 붙일 수 있다.
+        let id = try policyId(policy: policy, authorDid: authorDid, createdAt: createdAt)
+        let opinionSignature = try DeviceIdentity.sign(
+            message: try opinionSigningPayload(
+                policyId: id, card: firstOpinion, authorDid: authorDid, createdAt: createdAt)
+        )
+
         // 보내기 전에 코어가 검증한다. 왕복 없이 알려주는 편이 낫고,
         // 네트워크가 없을 때도 입력 문제를 알 수 있다.
-        let body = try openPolicyBody(policy: policy, firstOpinion: firstOpinion, authorDid: authorDid)
+        let body = try openPolicyBody(
+            policy: policy, firstOpinion: firstOpinion, authorDid: authorDid,
+            createdAt: createdAt, policySignature: policySignature,
+            opinionSignature: opinionSignature)
         return try parseId(json: await send("POST", "/api/policies", body: body))
     }
 
-    /// 기존 주제에 의견을 추가한다.
+    /// 기존 주제에 의견을 추가한다. 보내기 전에 서명한다.
     func addOpinion(policyId: String, card: DraftCard, authorDid: String) async throws -> String {
-        let body = try addOpinionBody(card: card, authorDid: authorDid)
+        let createdAt = Int64(Date().timeIntervalSince1970 * 1000)
+        let signature = try DeviceIdentity.sign(
+            message: try opinionSigningPayload(
+                policyId: policyId, card: card, authorDid: authorDid, createdAt: createdAt)
+        )
+        let body = try addOpinionBody(
+            card: card, authorDid: authorDid, createdAt: createdAt, signature: signature)
         return try parseId(json: await send("POST", "/api/policies/\(policyId)/opinions", body: body))
     }
 

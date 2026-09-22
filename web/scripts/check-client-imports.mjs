@@ -13,7 +13,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 
 /** 서버에서만 쓸 수 있는 모듈. 직접 또는 간접으로 끌어오면 안 된다. */
-const SERVER_ONLY = ["@/lib/db", "@/lib/auth", "@/lib/plaza", "@/lib/api", "@/lib/mail"];
+// lib/verify.ts 는 node:crypto 를, lib/authorship.ts 는 그것을 쓴다.
+const SERVER_ONLY = ["@/lib/db", "@/lib/auth", "@/lib/plaza", "@/lib/api", "@/lib/mail",
+                     "@/lib/verify", "@/lib/authorship"];
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {

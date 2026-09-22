@@ -28,6 +28,8 @@ import org.civicagora.core.DebateCard
 import org.civicagora.core.DraftCard
 import org.civicagora.core.PolicySummary
 import org.civicagora.core.StanceType
+import org.civicagora.core.checkOpinion
+import org.civicagora.core.checkPolicy
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,12 +63,24 @@ fun DetailScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(policy.title, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    categoryLabel(policy.category) +
-                        (policy.targetAgency?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        categoryLabel(policy.category) +
+                            (policy.targetAgency?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    // 서명은 이 글이 올라온 뒤 바뀌지 않았다는 것만 말한다.
+                    val status = checkPolicy(policy)
+                    Text(
+                        signatureText(status),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = signatureColor(status),
+                    )
+                }
                 Labeled("쟁점 질문") {
                     Text(policy.coreQuestion, style = MaterialTheme.typography.titleSmall)
                 }
@@ -171,12 +185,23 @@ private fun OpinionCard(card: DebateCard) {
             Labeled("제안") { Text(card.actionableSolution, style = MaterialTheme.typography.bodyMedium) }
 
             HorizontalDivider()
-            Text(
-                // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
-                "작성자 ${shortenDid(card.authorDid)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
+                    "작성자 ${shortenDid(card.authorDid)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val status = checkOpinion(card)
+                Text(
+                    signatureText(status),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = signatureColor(status),
+                )
+            }
         }
     }
 }

@@ -88,20 +88,46 @@ public sealed class ApiClient
         return CivicagoraMethods.ParseOpinions(json);
     }
 
-    /// <summary>주제를 열고 첫 의견을 함께 등록한다.</summary>
+    /// <summary>
+    /// 주제를 열고 첫 의견을 함께 등록한다.
+    ///
+    /// 보내기 전에 기기 키로 서명한다(VS-A4). 서버가 글을 고치면 이 서명이
+    /// 깨지므로 고친 사실이 드러난다.
+    /// </summary>
     public async Task<string> OpenPolicyAsync(DraftPolicy policy, DraftCard firstOpinion, string authorDid)
     {
+        // 시각을 여기서 정한다. 서명이 시각을 덮으려면 서명하는 쪽이 그 값을
+        // 알아야 하기 때문이다. 서버가 정하면 서버가 시각을 바꿔도 검증이 통과한다.
+        var createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        // 서명 대상 바이트는 코어가 만든다. 검증과 같은 형식이어야 하는데,
+        // 플랫폼이 각자 조립하면 바이트 한 칸이 어긋나고 그 버그는 검증 실패로만
+        // 나타나 원인을 찾기 어렵다.
+        var policySignature = DeviceIdentity.Sign(
+            CivicagoraMethods.PolicySigningPayload(policy, authorDid, createdAt));
+
+        // 첫 의견의 서명은 주제 식별자를 덮어야 한다. 그러지 않으면 같은 서명을
+        // 다른 주제에 옮겨 붙일 수 있다.
+        var policyId = CivicagoraMethods.PolicyId(policy, authorDid, createdAt);
+        var opinionSignature = DeviceIdentity.Sign(
+            CivicagoraMethods.OpinionSigningPayload(policyId, firstOpinion, authorDid, createdAt));
+
         // 보내기 전에 코어가 검증한다. 왕복 없이 알려주는 편이 낫고,
         // 네트워크가 없을 때도 입력 문제를 알 수 있다.
-        var body = CivicagoraMethods.OpenPolicyBody(policy, firstOpinion, authorDid);
+        var body = CivicagoraMethods.OpenPolicyBody(
+            policy, firstOpinion, authorDid, createdAt, policySignature, opinionSignature);
         var json = await SendAsync(HttpMethod.Post, "/api/policies", body);
         return CivicagoraMethods.ParseId(json);
     }
 
-    /// <summary>기존 주제에 의견을 추가한다.</summary>
+    /// <summary>기존 주제에 의견을 추가한다. 보내기 전에 서명한다.</summary>
     public async Task<string> AddOpinionAsync(string policyId, DraftCard card, string authorDid)
     {
-        var body = CivicagoraMethods.AddOpinionBody(card, authorDid);
+        var createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var signature = DeviceIdentity.Sign(
+            CivicagoraMethods.OpinionSigningPayload(policyId, card, authorDid, createdAt));
+
+        var body = CivicagoraMethods.AddOpinionBody(card, authorDid, createdAt, signature);
         var json = await SendAsync(HttpMethod.Post, $"/api/policies/{policyId}/opinions", body);
         return CivicagoraMethods.ParseId(json);
     }

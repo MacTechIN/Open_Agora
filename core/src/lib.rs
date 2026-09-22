@@ -22,6 +22,7 @@ mod card;
 mod identity;
 mod info;
 mod policy;
+mod signing;
 mod store;
 
 pub use api::{add_opinion_body, open_policy_body, parse_id, parse_opinions, parse_policies};
@@ -29,4 +30,8 @@ pub use card::{grapheme_count, CardError, DebateCard, DraftCard, StanceType};
 pub use identity::{did_from_public_key, public_key_from_did, verify_signature, IdentityError};
 pub use info::{core_info, CoreInfo, SPEC_REVISION};
 pub use policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
+pub use signing::{
+    check_opinion, check_policy, opinion_signing_payload, policy_id, policy_signing_payload,
+    SignatureStatus,
+};
 pub use store::CardStore;

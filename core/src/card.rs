@@ -40,7 +40,7 @@ pub enum StanceType {
 }
 
 impl StanceType {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             StanceType::Support => "SUPPORT",
             StanceType::Alternative => "ALTERNATIVE",
@@ -82,6 +82,11 @@ pub struct DebateCard {
     pub author_did: String,
     /// 작성 시각. epoch 밀리초.
     pub created_at: i64,
+    /// 작성자 서명 (P1363, 16진). VS-A4 이전 글은 없다.
+    ///
+    /// 없는 것과 틀린 것은 다르다. 이전 글을 전부 위조로 보이게 할 수 없어
+    /// 필수 항목으로 두지 않는다 (`signing.rs` SignatureStatus).
+    pub signature: Option<String>,
 }
 
 /// 카드 검증·저장 오류.
@@ -114,6 +119,22 @@ pub enum CardError {
 /// 스칼라가 되고, 이모지 ZWJ 조합은 여러 스칼라가 한 글자로 보인다. 어느
 /// 경우든 사용자가 센 글자 수와 시스템이 센 수가 어긋나 한도에 걸리는 이유를
 /// 알 수 없게 된다. 자소 클러스터가 사용자의 직관과 일치한다.
+/// 내용 해시로 식별자를 만든다.
+///
+/// 난수를 쓰지 않으므로 같은 입력이 같은 식별자를 만들고, 버튼을 두 번 눌러도
+/// 글이 두 개 생기지 않는다. 뒤에 붙을 내용 주소 지정(IPFS CID)과도 결이 맞다.
+///
+/// **서버(web/lib/validate.ts contentId)와 같은 규칙이다.** 공용 벡터
+/// (contracts/signing-vectors.json)가 두 구현을 대조한다.
+pub(crate) fn content_id(parts: &[&str]) -> String {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update((part.len() as u64).to_be_bytes());
+        hasher.update(part.as_bytes());
+    }
+    format!("{:x}", hasher.finalize())
+}
+
 pub(crate) fn count_graphemes(text: &str) -> usize {
     text.graphemes(true).count()
 }
@@ -210,27 +231,25 @@ impl DraftCard {
         policy_id: &str,
         author_did: &str,
         created_at: i64,
+        signature: Option<String>,
     ) -> Result<DebateCard, CardError> {
         self.validate()?;
 
-        let mut hasher = Sha256::new();
         // 안건을 해시에 넣는다. 같은 사람이 같은 순간에 서로 다른 안건에
         // 같은 내용을 쓸 수 있고, 그때 식별자가 충돌하면 한쪽이 사라진다.
-        hasher.update(policy_id.as_bytes());
-        hasher.update(author_did.as_bytes());
-        hasher.update(created_at.to_be_bytes());
-        hasher.update(self.stance.as_str().as_bytes());
-        for field in [
-            &self.problem_definition,
-            &self.evidence_source,
-            &self.evidence_url,
-            &self.actionable_solution,
-        ] {
-            // 길이를 함께 넣어 필드 경계가 섞이는 것을 막는다.
-            hasher.update((field.len() as u64).to_be_bytes());
-            hasher.update(field.as_bytes());
-        }
-        let id = format!("{:x}", hasher.finalize());
+        //
+        // 규칙은 서버(web/lib/validate.ts contentId)와 같아야 한다 —
+        // policy.rs 의 같은 자리에 이유를 적어 두었다.
+        let id = content_id(&[
+            policy_id,
+            author_did,
+            &created_at.to_string(),
+            self.stance.as_str(),
+            self.problem_definition.trim(),
+            self.evidence_source.trim(),
+            self.evidence_url.trim(),
+            self.actionable_solution.trim(),
+        ]);
 
         Ok(DebateCard {
             id,
@@ -242,6 +261,7 @@ impl DraftCard {
             actionable_solution: self.actionable_solution.trim().to_string(),
             author_did: author_did.to_string(),
             created_at,
+            signature,
         })
     }
 }
@@ -255,7 +275,7 @@ pub(crate) fn stance_from_str(value: &str) -> Option<StanceType> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     pub(crate) fn valid_draft() -> DraftCard {
@@ -409,29 +429,41 @@ mod tests {
             let mut draft = valid_draft();
             draft.problem_definition = "  앞뒤 공백  ".into();
             let card = draft
-                .finalize("pol1", "did:key:zTest", 1_700_000_000_000)
+                .finalize("pol1", "did:key:zTest", 1_700_000_000_000, None)
                 .unwrap();
             assert_eq!(card.problem_definition, "앞뒤 공백");
         }
 
         #[test]
         fn 같은_입력이_같은_식별자를_만든다() {
-            let a = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
-            let b = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
+            let a = valid_draft()
+                .finalize("pol1", "did:key:zTest", 42, None)
+                .unwrap();
+            let b = valid_draft()
+                .finalize("pol1", "did:key:zTest", 42, None)
+                .unwrap();
             assert_eq!(a.id, b.id);
         }
 
         #[test]
         fn 작성자가_다르면_식별자가_다르다() {
-            let a = valid_draft().finalize("pol1", "did:key:zA", 42).unwrap();
-            let b = valid_draft().finalize("pol1", "did:key:zB", 42).unwrap();
+            let a = valid_draft()
+                .finalize("pol1", "did:key:zA", 42, None)
+                .unwrap();
+            let b = valid_draft()
+                .finalize("pol1", "did:key:zB", 42, None)
+                .unwrap();
             assert_ne!(a.id, b.id);
         }
 
         #[test]
         fn 시각이_다르면_식별자가_다르다() {
-            let a = valid_draft().finalize("pol1", "did:key:zTest", 42).unwrap();
-            let b = valid_draft().finalize("pol1", "did:key:zTest", 43).unwrap();
+            let a = valid_draft()
+                .finalize("pol1", "did:key:zTest", 42, None)
+                .unwrap();
+            let b = valid_draft()
+                .finalize("pol1", "did:key:zTest", 43, None)
+                .unwrap();
             assert_ne!(a.id, b.id);
         }
 
@@ -446,8 +478,8 @@ mod tests {
             second.problem_definition = "가".into();
             second.evidence_source = "나다".into();
 
-            let a = first.finalize("pol1", "did:key:zTest", 42).unwrap();
-            let b = second.finalize("pol1", "did:key:zTest", 42).unwrap();
+            let a = first.finalize("pol1", "did:key:zTest", 42, None).unwrap();
+            let b = second.finalize("pol1", "did:key:zTest", 42, None).unwrap();
             assert_ne!(a.id, b.id);
         }
 
@@ -455,7 +487,7 @@ mod tests {
         fn 검증에_실패하면_확정되지_않는다() {
             let mut draft = valid_draft();
             draft.evidence_url = "잘못된 주소".into();
-            assert!(draft.finalize("pol1", "did:key:zTest", 42).is_err());
+            assert!(draft.finalize("pol1", "did:key:zTest", 42, None).is_err());
         }
     }
 }

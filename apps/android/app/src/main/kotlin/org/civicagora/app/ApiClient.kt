@@ -8,7 +8,10 @@ import org.civicagora.core.DraftPolicy
 import org.civicagora.core.PolicySummary
 import org.civicagora.core.addOpinionBody
 import org.civicagora.core.openPolicyBody
+import org.civicagora.core.opinionSigningPayload
 import org.civicagora.core.parseId
+import org.civicagora.core.policyId as corePolicyId
+import org.civicagora.core.policySigningPayload
 import org.civicagora.core.parseOpinions
 import org.civicagora.core.parsePolicies
 import org.json.JSONObject
@@ -76,17 +79,47 @@ class ApiClient(baseUrl: String = DEFAULT_BASE_URL) {
     suspend fun listOpinions(policyId: String): List<DebateCard> =
         parseOpinions(send("GET", "/api/policies/$policyId"))
 
-    /** 주제를 열고 첫 의견을 함께 등록한다. */
+    /**
+     * 주제를 열고 첫 의견을 함께 등록한다.
+     *
+     * 보내기 전에 기기 키로 서명한다(VS-A4). 서버가 글을 고치면 이 서명이
+     * 깨지므로 고친 사실이 드러난다.
+     */
     suspend fun openPolicy(policy: DraftPolicy, firstOpinion: DraftCard, authorDid: String): String {
+        // 시각을 여기서 정한다. 서명이 시각을 덮으려면 서명하는 쪽이 그 값을
+        // 알아야 하기 때문이다. 서버가 정하면 서버가 시각을 바꿔도 검증이 통과한다.
+        val createdAt = System.currentTimeMillis()
+
+        // 서명 대상 바이트는 코어가 만든다. 플랫폼이 각자 조립하면 바이트 한
+        // 칸이 어긋나고, 그 버그는 검증 실패로만 나타나 원인을 찾기 어렵다.
+        val policySignature = withContext(Dispatchers.IO) {
+            // StrongBox 서명은 100ms 가까이 걸릴 수 있다. 주 스레드에서 하면
+            // 버튼을 누른 순간 화면이 멈춘 것처럼 보인다.
+            DeviceIdentity.sign(policySigningPayload(policy, authorDid, createdAt))
+        }
+
+        // 첫 의견의 서명은 주제 식별자를 덮어야 한다. 그러지 않으면 같은
+        // 서명을 다른 주제에 옮겨 붙일 수 있다.
+        val id = corePolicyId(policy, authorDid, createdAt)
+        val opinionSignature = withContext(Dispatchers.IO) {
+            DeviceIdentity.sign(opinionSigningPayload(id, firstOpinion, authorDid, createdAt))
+        }
+
         // 보내기 전에 코어가 검증한다. 왕복 없이 알려주는 편이 낫고,
         // 네트워크가 없을 때도 입력 문제를 알 수 있다.
-        val body = openPolicyBody(policy, firstOpinion, authorDid)
+        val body = openPolicyBody(
+            policy, firstOpinion, authorDid, createdAt, policySignature, opinionSignature
+        )
         return parseId(send("POST", "/api/policies", body))
     }
 
-    /** 기존 주제에 의견을 추가한다. */
+    /** 기존 주제에 의견을 추가한다. 보내기 전에 서명한다. */
     suspend fun addOpinion(policyId: String, card: DraftCard, authorDid: String): String {
-        val body = addOpinionBody(card, authorDid)
+        val createdAt = System.currentTimeMillis()
+        val signature = withContext(Dispatchers.IO) {
+            DeviceIdentity.sign(opinionSigningPayload(policyId, card, authorDid, createdAt))
+        }
+        val body = addOpinionBody(card, authorDid, createdAt, signature)
         return parseId(send("POST", "/api/policies/$policyId/opinions", body))
     }
 

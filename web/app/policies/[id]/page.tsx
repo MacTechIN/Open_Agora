@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { migrate, sql } from "@/lib/db";
 import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance } from "@/lib/types";
 import AddOpinion from "./AddOpinion";
+import SignatureBadge from "@/components/SignatureBadge";
+import { checkSignature } from "@/lib/verify.ts";
+import { opinionPayload, policyPayload } from "@/lib/signing.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +48,12 @@ function Column({ stance, cards }: { stance: Stance; cards: DebateCard[] }) {
             <span className="label">제안</span>
             {c.actionable_solution}
           </div>
-          <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+          <div className="muted"
+               style={{ marginTop: 10, fontSize: 12, display: "flex",
+                        justifyContent: "space-between", gap: 8 }}>
             {/* 필명 체계는 VS-C3에서 붙는다. 그때까지는 식별자 앞부분만 보인다. */}
-            작성자 {c.author_did.slice(0, 22)}…
+            <span>작성자 {c.author_did.slice(0, 22)}…</span>
+            <SignatureBadge status={checkSignature(c.author_did, opinionPayload(c), c.signature)} />
           </div>
         </div>
       ))}
@@ -67,9 +73,16 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2 style={{ margin: 0, fontSize: 21 }}>{policy.title}</h2>
-        <div className="muted" style={{ marginTop: 4 }}>
-          {CATEGORY_LABEL[policy.category]}
-          {policy.target_agency ? ` · ${policy.target_agency}` : ""}
+        <div className="muted"
+             style={{ marginTop: 4, display: "flex", justifyContent: "space-between", gap: 8 }}>
+          <span>
+            {CATEGORY_LABEL[policy.category]}
+            {policy.target_agency ? ` · ${policy.target_agency}` : ""}
+          </span>
+          {/* 서명은 이 글이 올라온 뒤 바뀌지 않았다는 것만 말한다. 내용이
+              사실이라는 뜻은 아니다. */}
+          <SignatureBadge
+            status={checkSignature(policy.author_did, policyPayload(policy), policy.signature)} />
         </div>
 
         <div style={{ marginTop: 16 }}>

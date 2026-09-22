@@ -40,8 +40,14 @@ struct DetailView: View {
         let agency = policy.targetAgency.flatMap { $0.isEmpty ? nil : " · \($0)" } ?? ""
         return VStack(alignment: .leading, spacing: 10) {
             Text(policy.title).font(.title3.bold())
-            Text(categoryLabel(policy.category) + agency)
-                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text(categoryLabel(policy.category) + agency)
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                // 서명은 이 글이 올라온 뒤 바뀌지 않았다는 것만 말한다.
+                let status = checkPolicy(policy: policy)
+                Text(signatureText(status)).font(.caption).foregroundStyle(signatureColor(status))
+            }
             Labeled("쟁점 질문") { Text(policy.coreQuestion).font(.subheadline.bold()) }
             Labeled("왜 지금 이슈인가") { Text(policy.background).font(.subheadline) }
             Text(policy.officialSourceUrl).font(.caption).foregroundStyle(.blue)
@@ -131,9 +137,14 @@ struct OpinionCard: View {
             Text(card.evidenceUrl).font(.caption).foregroundStyle(.blue)
             Labeled("제안") { Text(card.actionableSolution).font(.subheadline) }
             Divider()
-            // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
-            Text("작성자 \(shortenDid(card.authorDid))")
-                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                // 필명 체계는 VS-C3 에서 붙는다. 그때까지는 식별자 앞부분만 보인다.
+                Text("작성자 \(shortenDid(card.authorDid))")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                let status = checkOpinion(card: card)
+                Text(signatureText(status)).font(.caption).foregroundStyle(signatureColor(status))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)

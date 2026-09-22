@@ -15,6 +15,8 @@ export interface Policy {
   target_agency: string | null;
   author_did: string;
   created_at: number;
+  /** 작성자 서명(P1363, 16진). VS-A4 이전 글은 없다. */
+  signature: string | null;
 }
 
 export interface PolicySummary extends Policy {
@@ -34,6 +36,8 @@ export interface DebateCard {
   actionable_solution: string;
   author_did: string;
   created_at: number;
+  /** 작성자 서명(P1363, 16진). VS-A4 이전 글은 없다. */
+  signature: string | null;
 }
 
 export const STANCE_LABEL: Record<Stance, string> = {

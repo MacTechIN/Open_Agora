@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const source = join(here, "../../contracts");
 const target = join(here, "../lib/generated");
-const files = ["limits.json", "validation-fixtures.json"];
+const files = ["limits.json", "validation-fixtures.json", "signing-vectors.json"];
 const check = process.argv.includes("--check");
 
 mkdirSync(target, { recursive: true });

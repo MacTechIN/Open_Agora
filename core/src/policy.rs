@@ -13,9 +13,7 @@
 //! 안건 등록은 첫 의견과 함께만 가능하다(`CardStore::open_policy`). 토론이
 //! 빈 상태로 시작하지 않게 하고, 여는 사람도 자기 입장을 밝히게 한다.
 
-use sha2::{Digest, Sha256};
-
-use crate::card::{check_field, check_url, CardError};
+use crate::card::{check_field, check_url, content_id, CardError};
 
 /// 제목 최대 길이.
 pub const MAX_TITLE: usize = 60;
@@ -96,6 +94,8 @@ pub struct Policy {
     pub target_agency: Option<String>,
     pub author_did: String,
     pub created_at: i64,
+    /// 작성자 서명 (P1363, 16진). VS-A4 이전 글은 없다.
+    pub signature: Option<String>,
 }
 
 /// 광장 목록에 쓰는 안건 요약.
@@ -128,18 +128,28 @@ impl DraftPolicy {
         Ok(())
     }
 
-    pub(crate) fn finalize(self, author_did: &str, created_at: i64) -> Result<Policy, CardError> {
+    pub(crate) fn finalize(
+        self,
+        author_did: &str,
+        created_at: i64,
+        signature: Option<String>,
+    ) -> Result<Policy, CardError> {
         self.validate()?;
 
-        let mut hasher = Sha256::new();
-        hasher.update(author_did.as_bytes());
-        hasher.update(created_at.to_be_bytes());
-        for field in [&self.title, &self.background, &self.core_question] {
-            // 길이를 함께 넣어 필드 경계가 섞이는 것을 막는다.
-            hasher.update((field.len() as u64).to_be_bytes());
-            hasher.update(field.as_bytes());
-        }
-        let id = format!("{:x}", hasher.finalize());
+        // 식별자 규칙은 서버(web/lib/validate.ts contentId)와 **같아야 한다.**
+        // 첫 의견의 서명이 주제 식별자를 덮으므로, 두 규칙이 갈리면 앱이 올린
+        // 첫 의견이 서버에서 전부 검증 실패한다.
+        //
+        // 그래서 모든 부분을 같은 방식으로 다룬다 — 다듬은 값, 길이 접두사,
+        // 시각은 십진 문자열. 길이를 함께 넣는 것은 ("ab","c")와 ("a","bc")가
+        // 같은 해시를 내지 않게 하기 위해서다.
+        let id = content_id(&[
+            author_did,
+            &created_at.to_string(),
+            self.title.trim(),
+            self.background.trim(),
+            self.core_question.trim(),
+        ]);
 
         Ok(Policy {
             id,
@@ -154,6 +164,7 @@ impl DraftPolicy {
                 .filter(|a| !a.is_empty()),
             author_did: author_did.to_string(),
             created_at,
+            signature,
         })
     }
 }

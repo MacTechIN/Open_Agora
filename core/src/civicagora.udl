@@ -38,12 +38,43 @@ namespace civicagora {
     // 두 플랫폼이 각자 조립하면 필드가 어긋나고 서버 로그에서만 보인다.
 
     // POST /api/policies 본문
+    //
+    // created_at 을 클라이언트가 정한다. 서명이 시각을 덮으려면 서명하는 쪽이
+    // 그 값을 알아야 하기 때문이다. 서버가 정하면 서버가 시각을 바꿔도
+    // 검증이 통과한다.
     [Throws=CardError]
-    string open_policy_body(DraftPolicy policy, DraftCard first_opinion, string author_did);
+    string open_policy_body(DraftPolicy policy, DraftCard first_opinion, string author_did,
+                            i64 created_at, bytes policy_signature, bytes opinion_signature);
 
     // POST /api/policies/{id}/opinions 본문
     [Throws=CardError]
-    string add_opinion_body(DraftCard card, string author_did);
+    string add_opinion_body(DraftCard card, string author_did,
+                            i64 created_at, bytes signature);
+
+    // ── VS-A4: 작성자 서명 ────────────────────────────────────────
+    //
+    // 글을 올릴 때 기기 키로 내용에 서명한다. 운영자가 고치면 검증이 깨지므로
+    // 고친 사실이 드러난다. 블록체인이 필요 없다 — 이미 있는 것으로 된다.
+    //   → docs/16_ONCHAIN_PLAN.md 1단계
+
+    // 서명할 바이트. 플랫폼이 ECDSA(P-256, SHA-256)로 서명한다.
+    // 개인키는 코어를 거치지 않는다.
+    [Throws=CardError]
+    bytes policy_signing_payload(DraftPolicy policy, string author_did, i64 created_at);
+
+    [Throws=CardError]
+    bytes opinion_signing_payload(string policy_id, DraftCard card,
+                                  string author_did, i64 created_at);
+
+    // 주제 식별자. 첫 의견에 서명하려면 이 값이 필요하다 — 의견 서명이 주제
+    // 식별자를 덮어야 같은 서명을 다른 주제에 옮겨 붙일 수 없다.
+    [Throws=CardError]
+    string policy_id(DraftPolicy policy, string author_did, i64 created_at);
+
+    // 받은 글의 서명을 확인한다. 오류를 던지지 않는 이유는 "서명 없음"과
+    // "서명 틀림"이 둘 다 정상적인 결과이기 때문이다.
+    SignatureStatus check_policy(Policy policy);
+    SignatureStatus check_opinion(DebateCard card);
 
     // 등록 응답에서 식별자를 꺼낸다. 서버의 검증 메시지도 오류로 전달한다.
     [Throws=CardError]
@@ -97,6 +128,17 @@ enum StanceType {
     "Oppose",
 };
 
+// 서명 상태.
+//
+// "없음"과 "틀림"을 구분한다. 서명 이전에 올라온 글은 없는 것이고 그것은
+// 위조가 아니다. 둘을 하나로 묶으면 오래된 글이 전부 위조로 보인다.
+enum SignatureStatus {
+    "Unsigned",
+    "Valid",
+    "Invalid",
+    "Malformed",
+};
+
 enum PolicyCategory {
     "GovPolicy",
     "Legislation",
@@ -129,6 +171,7 @@ dictionary Policy {
     string? target_agency;
     string author_did;
     i64 created_at;
+    string? signature;            // 작성자 서명(P1363, 16진). 이전 글은 없다
 };
 
 // 광장 목록용 요약. 집계를 함께 주어 목록 화면이 N+1 질의를 하지 않게 한다.
@@ -160,6 +203,7 @@ dictionary DebateCard {
     string actionable_solution;
     string author_did;
     i64 created_at;               // epoch 밀리초
+    string? signature;            // 작성자 서명(P1363, 16진). 이전 글은 없다
 };
 
 interface CardStore {
@@ -170,12 +214,13 @@ interface CardStore {
     // 주제만 던지고 빠지는 것을 막는다.
     [Throws=CardError]
     string open_policy(DraftPolicy draft, DraftCard first_opinion,
-                       string author_did, i64 created_at);
+                       string author_did, i64 created_at,
+                       string? policy_signature, string? opinion_signature);
 
     // 기존 안건에 의견을 추가한다.
     [Throws=CardError]
     string add_opinion(string policy_id, DraftCard draft,
-                       string author_did, i64 created_at);
+                       string author_did, i64 created_at, string? signature);
 
     // 광장 목록. 최근 활동순.
     [Throws=CardError]

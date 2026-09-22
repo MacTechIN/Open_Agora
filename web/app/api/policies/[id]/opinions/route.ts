@@ -3,6 +3,7 @@ import { migrate, requireDb } from "@/lib/db";
 import { contentId, validateCard, ValidationError } from "@/lib/validate";
 import { fail } from "@/lib/api";
 import { isMember, migrateAuth } from "@/lib/auth";
+import { resolveCreatedAt, verifyOpinionSignature } from "@/lib/authorship";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,13 @@ export async function POST(
     const [policy] = await db`SELECT id FROM policies WHERE id = ${id}`;
     if (!policy) throw new ValidationError("없는 주제입니다");
 
-    const now = Date.now();
+    const now = resolveCreatedAt(body.created_at);
+    // 서명 확인을 저장보다 먼저 한다.
+    const signature = verifyOpinionSignature(
+      { ...card, policy_id: id, author_did: authorDid, created_at: now },
+      body.signature
+    );
+
     const cardId = await contentId([
       id, authorDid, String(now), card.stance,
       card.problem_definition, card.evidence_source, card.evidence_url, card.actionable_solution,
@@ -42,10 +49,11 @@ export async function POST(
 
     await db`
       INSERT INTO cards (id, policy_id, stance, problem_definition, evidence_source,
-                         evidence_url, actionable_solution, author_did, created_at)
+                         evidence_url, actionable_solution, author_did, created_at,
+                         signature)
       VALUES (${cardId}, ${id}, ${card.stance}, ${card.problem_definition},
               ${card.evidence_source}, ${card.evidence_url},
-              ${card.actionable_solution}, ${authorDid}, ${now})
+              ${card.actionable_solution}, ${authorDid}, ${now}, ${signature})
       ON CONFLICT (id) DO NOTHING`;
 
     return NextResponse.json({ card_id: cardId }, { status: 201 });

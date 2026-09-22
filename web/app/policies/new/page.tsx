@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import CountedField, { PlainField } from "@/components/CountedField";
 import ErrorNotice from "@/components/ErrorNotice";
 import OpinionForm, { EMPTY_OPINION, opinionReady, type OpinionValue } from "@/components/OpinionForm";
-import { loadOrCreateDid } from "@/lib/identity";
+import { loadOrCreateDid, signWithDevice } from "@/lib/identity";
+import { opinionPayload, policyPayload } from "@/lib/signing";
 import { LIMITS, graphemeCount } from "@/lib/limits";
+import { contentId } from "@/lib/validate";
 import { CATEGORY_LABEL, type Category } from "@/lib/types";
 
 export default function NewPolicy() {
@@ -42,18 +44,56 @@ export default function NewPolicy() {
     setBusy(true);
     setError(null);
     try {
+      // 보내기 전에 기기 키로 서명한다. 서버가 글을 고치면 이 서명이 깨지므로
+      // 고친 사실이 드러난다 (VS-A4).
+      const createdAt = Date.now();
+      const policyFields = {
+        title,
+        category,
+        background,
+        core_question: question,
+        official_source_url: sourceUrl.trim(),
+        target_agency: agency.trim() || null,
+      };
+      const signed = {
+        author_did: did!,
+        created_at: createdAt,
+        ...policyFields,
+        // 서버는 다듬은 값을 저장하므로 서명도 그 값에 해야 한다.
+        title: title.trim(),
+        background: background.trim(),
+        core_question: question.trim(),
+      };
+      const policySignature = await signWithDevice(policyPayload(signed));
+
+      // 첫 의견의 서명은 주제 식별자를 덮어야 한다. 그러지 않으면 같은 서명을
+      // 다른 주제에 옮겨 붙일 수 있다. 식별자는 내용 해시이므로 서버와 같은
+      // 규칙으로 여기서도 만들 수 있다 — 둘이 갈리면 서명 검증이 실패하므로
+      // 조용히 어긋나지는 않는다.
+      const policyId = await contentId([
+        did!, String(createdAt), signed.title, signed.background, signed.core_question,
+      ]);
+      const opinionSignature = await signWithDevice(opinionPayload({
+        policy_id: policyId,
+        author_did: did!,
+        created_at: createdAt,
+        stance: opinion.stance,
+        problem_definition: opinion.problem_definition.trim(),
+        evidence_source: opinion.evidence_source.trim(),
+        evidence_url: opinion.evidence_url.trim(),
+        actionable_solution: opinion.actionable_solution.trim(),
+      }));
+
       const response = await fetch("/api/policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           author_did: did,
-          policy: {
-            title, category, background,
-            core_question: question,
-            official_source_url: sourceUrl,
-            target_agency: agency,
-          },
+          created_at: createdAt,
+          policy: policyFields,
           first_opinion: opinion,
+          policy_signature: policySignature,
+          opinion_signature: opinionSignature,
         }),
       });
       const data = await response.json();

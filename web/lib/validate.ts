@@ -6,6 +6,9 @@
  * core/src/card.rs 를 함께 본다.
  */
 import { LIMITS, graphemeCount } from "./limits";
+// 식별자 계산은 lib/signing.ts 로 옮겼다. 서명이 식별자를 덮으므로
+// 둘이 한곳에 있어야 규칙이 갈리지 않는다.
+export { contentId } from "./signing.ts";
 import type { Category, Stance } from "./types";
 
 export class ValidationError extends Error {}
@@ -100,26 +103,3 @@ export function validatePolicy(input: Record<string, unknown>): CleanPolicy {
   };
 }
 
-/**
- * 식별자를 만든다. 코어와 같은 방식 — 내용 해시.
- *
- * 난수를 쓰지 않으므로 같은 입력이 같은 식별자를 만들고, 버튼을 두 번 눌러도
- * 글이 두 개 생기지 않는다. 필드마다 길이를 함께 넣어 경계가 섞이지 않게 한다.
- */
-export async function contentId(parts: string[]): Promise<string> {
-  const encoder = new TextEncoder();
-  const chunks: Uint8Array[] = [];
-  for (const part of parts) {
-    const bytes = encoder.encode(part);
-    const length = new Uint8Array(8);
-    new DataView(length.buffer).setBigUint64(0, BigInt(bytes.length));
-    chunks.push(length, bytes);
-  }
-  const total = chunks.reduce((n, c) => n + c.length, 0);
-  const joined = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) { joined.set(c, offset); offset += c.length; }
-
-  const digest = await crypto.subtle.digest("SHA-256", joined);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}

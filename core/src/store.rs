@@ -19,7 +19,8 @@ use crate::policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
 /// 스키마 버전. 마이그레이션 판단에 쓴다.
 ///
 /// 2: 안건(policies) 도입, cards에 policy_id 추가.
-const SCHEMA_VERSION: i64 = 2;
+/// 3: 작성자 서명(signature) 추가 (VS-A4).
+const SCHEMA_VERSION: i64 = 3;
 
 fn storage_error(e: impl std::fmt::Display) -> CardError {
     CardError::Storage {
@@ -33,8 +34,8 @@ fn insert_card(connection: &Connection, card: &DebateCard) -> Result<(), CardErr
         .execute(
             "INSERT OR IGNORE INTO cards
                (id, policy_id, stance, problem_definition, evidence_source,
-                evidence_url, actionable_solution, author_did, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                evidence_url, actionable_solution, author_did, created_at, signature)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
                 card.id,
                 card.policy_id,
@@ -45,6 +46,7 @@ fn insert_card(connection: &Connection, card: &DebateCard) -> Result<(), CardErr
                 card.actionable_solution,
                 card.author_did,
                 card.created_at,
+                card.signature,
             ],
         )
         .map_err(storage_error)?;
@@ -87,7 +89,8 @@ impl CardStore {
                      official_source_url  TEXT NOT NULL,
                      target_agency        TEXT,
                      author_did           TEXT NOT NULL,
-                     created_at           INTEGER NOT NULL
+                     created_at           INTEGER NOT NULL,
+                     signature            TEXT
                  );
                  CREATE TABLE IF NOT EXISTS cards (
                      id                   TEXT PRIMARY KEY,
@@ -98,7 +101,8 @@ impl CardStore {
                      evidence_url         TEXT NOT NULL,
                      actionable_solution  TEXT NOT NULL,
                      author_did           TEXT NOT NULL,
-                     created_at           INTEGER NOT NULL
+                     created_at           INTEGER NOT NULL,
+                     signature            TEXT
                  );
                  CREATE INDEX IF NOT EXISTS idx_cards_created_at
                      ON cards (created_at DESC);
@@ -108,6 +112,16 @@ impl CardStore {
                      ON policies (created_at DESC);",
             )
             .map_err(storage_error)?;
+
+        // 이미 만들어진 파일에는 CREATE TABLE IF NOT EXISTS 가 열을 더하지
+        // 않는다. 열이 이미 있으면 ALTER 가 실패하므로 결과를 무시한다 —
+        // 여기서 실패를 올리면 2판 저장소를 연 사용자의 앱이 열리지 않는다.
+        for table in ["policies", "cards"] {
+            let _ = connection.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN signature TEXT"),
+                [],
+            );
+        }
 
         connection
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -126,11 +140,14 @@ impl CardStore {
         first_opinion: DraftCard,
         author_did: String,
         created_at: i64,
+        policy_signature: Option<String>,
+        opinion_signature: Option<String>,
     ) -> Result<String, CardError> {
         // 검증을 먼저 모두 끝낸다. 안건이 들어간 뒤 의견이 거부되면
         // 롤백해야 하는데, 그 전에 걸러내는 편이 단순하다.
-        let policy = draft.finalize(&author_did, created_at)?;
-        let card = first_opinion.finalize(&policy.id, &author_did, created_at)?;
+        let policy = draft.finalize(&author_did, created_at, policy_signature)?;
+        let card =
+            first_opinion.finalize(&policy.id, &author_did, created_at, opinion_signature)?;
 
         let mut connection = self.connection.lock().map_err(storage_error)?;
         let tx = connection.transaction().map_err(storage_error)?;
@@ -138,8 +155,8 @@ impl CardStore {
         tx.execute(
             "INSERT OR IGNORE INTO policies
                (id, title, category, background, core_question,
-                official_source_url, target_agency, author_did, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                official_source_url, target_agency, author_did, created_at, signature)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
                 policy.id,
                 policy.title,
@@ -150,6 +167,7 @@ impl CardStore {
                 policy.target_agency,
                 policy.author_did,
                 policy.created_at,
+                policy.signature,
             ],
         )
         .map_err(storage_error)?;
@@ -170,8 +188,9 @@ impl CardStore {
         draft: DraftCard,
         author_did: String,
         created_at: i64,
+        signature: Option<String>,
     ) -> Result<String, CardError> {
-        let card = draft.finalize(&policy_id, &author_did, created_at)?;
+        let card = draft.finalize(&policy_id, &author_did, created_at, signature)?;
         let connection = self.connection.lock().map_err(storage_error)?;
 
         // 없는 안건에 의견을 달면 어디에도 보이지 않는 글이 된다.
@@ -200,7 +219,7 @@ impl CardStore {
         let mut statement = connection
             .prepare(
                 "SELECT id, policy_id, stance, problem_definition, evidence_source,
-                        evidence_url, actionable_solution, author_did, created_at
+                        evidence_url, actionable_solution, author_did, created_at, signature
                    FROM cards
                   WHERE policy_id = ?1
                   ORDER BY created_at DESC, id",
@@ -228,6 +247,7 @@ impl CardStore {
                     actionable_solution: row.get(6)?,
                     author_did: row.get(7)?,
                     created_at: row.get(8)?,
+                    signature: row.get(9)?,
                 })
             })
             .map_err(storage_error)?;
@@ -245,6 +265,7 @@ impl CardStore {
             .prepare(
                 "SELECT p.id, p.title, p.category, p.background, p.core_question,
                         p.official_source_url, p.target_agency, p.author_did, p.created_at,
+                        p.signature,
                         COALESCE(SUM(c.stance = 'SUPPORT'), 0),
                         COALESCE(SUM(c.stance = 'ALTERNATIVE'), 0),
                         COALESCE(SUM(c.stance = 'OPPOSE'), 0),
@@ -276,11 +297,12 @@ impl CardStore {
                         target_agency: row.get(6)?,
                         author_did: row.get(7)?,
                         created_at: row.get(8)?,
+                        signature: row.get(9)?,
                     },
-                    support_count: row.get::<_, i64>(9)? as u32,
-                    alternative_count: row.get::<_, i64>(10)? as u32,
-                    oppose_count: row.get::<_, i64>(11)? as u32,
-                    last_activity_at: row.get(12)?,
+                    support_count: row.get::<_, i64>(10)? as u32,
+                    alternative_count: row.get::<_, i64>(11)? as u32,
+                    oppose_count: row.get::<_, i64>(12)? as u32,
+                    last_activity_at: row.get(13)?,
                 })
             })
             .map_err(storage_error)?;
@@ -350,6 +372,8 @@ mod tests {
                 draft_card(StanceType::Support, "첫 의견"),
                 DID.into(),
                 at,
+                None,
+                None,
             )
             .expect("안건 등록")
     }
@@ -387,7 +411,14 @@ mod tests {
         let store = memory_store();
         let mut bad = draft_policy("제목");
         bad.core_question = "".into();
-        let result = store.open_policy(bad, draft_card(StanceType::Support, "의견"), DID.into(), 1);
+        let result = store.open_policy(
+            bad,
+            draft_card(StanceType::Support, "의견"),
+            DID.into(),
+            1,
+            None,
+            None,
+        );
         assert!(result.is_err());
         assert!(store.list_policies().unwrap().is_empty());
         assert_eq!(store.count().unwrap(), 0);
@@ -398,7 +429,7 @@ mod tests {
         let store = memory_store();
         let mut bad = draft_card(StanceType::Support, "의견");
         bad.evidence_url = "".into();
-        let result = store.open_policy(draft_policy("제목"), bad, DID.into(), 1);
+        let result = store.open_policy(draft_policy("제목"), bad, DID.into(), 1, None, None);
         assert!(result.is_err());
         assert!(store.list_policies().unwrap().is_empty(), "안건만 남았다");
     }
@@ -413,6 +444,7 @@ mod tests {
                 draft_card(StanceType::Oppose, "반대 의견"),
                 DID.into(),
                 2_000,
+                None,
             )
             .unwrap();
 
@@ -431,6 +463,7 @@ mod tests {
             draft_card(StanceType::Support, "의견"),
             DID.into(),
             1,
+            None,
         );
         assert!(result.is_err());
     }
@@ -453,6 +486,7 @@ mod tests {
                     draft_card(stance, &format!("의견 {i}")),
                     DID.into(),
                     2_000 + i as i64,
+                    None,
                 )
                 .unwrap();
         }
@@ -475,6 +509,7 @@ mod tests {
                 draft_card(StanceType::Oppose, "새 의견"),
                 DID.into(),
                 3_000,
+                None,
             )
             .unwrap();
 
@@ -498,6 +533,7 @@ mod tests {
                 draft_card(StanceType::Oppose, "A의 의견"),
                 DID.into(),
                 3_000,
+                None,
             )
             .unwrap();
 
@@ -513,9 +549,9 @@ mod tests {
         let b = open(&store, "주제 B", 1_000);
         let card = draft_card(StanceType::Oppose, "같은 내용");
         let id_a = store
-            .add_opinion(a, card.clone(), DID.into(), 5_000)
+            .add_opinion(a, card.clone(), DID.into(), 5_000, None)
             .unwrap();
-        let id_b = store.add_opinion(b, card, DID.into(), 5_000).unwrap();
+        let id_b = store.add_opinion(b, card, DID.into(), 5_000, None).unwrap();
         assert_ne!(id_a, id_b);
     }
 
@@ -525,9 +561,9 @@ mod tests {
         let id = open(&store, "주제", 1_000);
         let card = draft_card(StanceType::Oppose, "같은 글");
         let first = store
-            .add_opinion(id.clone(), card.clone(), DID.into(), 500)
+            .add_opinion(id.clone(), card.clone(), DID.into(), 500, None)
             .unwrap();
-        let second = store.add_opinion(id, card, DID.into(), 500).unwrap();
+        let second = store.add_opinion(id, card, DID.into(), 500, None).unwrap();
         assert_eq!(first, second);
         assert_eq!(store.count().unwrap(), 2, "첫 의견 + 중복 1건");
     }

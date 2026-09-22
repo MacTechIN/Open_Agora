@@ -22,8 +22,18 @@ const url = process.env.DATABASE_URL;
  * 환경변수가 없으면 즉시 실패한다. 조용히 메모리로 내려앉으면 글이 사라지는데
  * 사용자는 저장된 줄 안다.
  */
+/**
+ * TLS 는 기본으로 요구한다.
+ *
+ * 주소에 `sslmode=disable` 이 **명시된 경우에만** 끈다. 로컬 시험용
+ * Postgres 컨테이너에는 TLS 가 없기 때문이다. 기본값을 뒤집지 않는 이유는,
+ * 실수로 평문 연결이 운영에 나가면 연결 문자열과 글이 그대로 지나가기
+ * 때문이다 — 끄는 것은 명시적인 선택이어야 한다.
+ */
+const insecure = /[?&]sslmode=disable(&|$)/.test(url ?? "");
+
 export const sql = url
-  ? postgres(url, { ssl: "require", max: 5 })
+  ? postgres(url, { ssl: insecure ? false : "require", max: 5 })
   : null;
 
 export function requireDb() {
@@ -62,6 +72,11 @@ export async function migrate() {
       author_did          TEXT NOT NULL,
       created_at          BIGINT NOT NULL
     )`;
+  // VS-A4: 작성자 서명. 이미 있는 표에 열을 더하므로 ALTER 를 쓴다.
+  // 이전 글은 서명이 없다 — 없는 것과 틀린 것은 다르다(lib/verify.ts).
+  await db`ALTER TABLE policies ADD COLUMN IF NOT EXISTS signature TEXT`;
+  await db`ALTER TABLE cards    ADD COLUMN IF NOT EXISTS signature TEXT`;
+
   await db`CREATE INDEX IF NOT EXISTS idx_cards_policy ON cards (policy_id, created_at DESC)`;
   await db`CREATE INDEX IF NOT EXISTS idx_policies_created ON policies (created_at DESC)`;
 }

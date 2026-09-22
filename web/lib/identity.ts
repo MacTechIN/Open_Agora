@@ -87,3 +87,25 @@ export async function loadOrCreateDid(): Promise<string> {
   await idb("readwrite", (s) => s.put(pair, KEY_ID));
   return toDid(pair.publicKey);
 }
+
+/**
+ * 기기 키로 서명한다 (VS-A4).
+ *
+ * WebCrypto 의 ECDSA 서명은 P1363(r‖s, 64바이트)을 준다. 코어가 기대하는
+ * 형식과 같으므로 변환이 없다 — 네이티브 앱은 DER 을 받아 변환해야 한다.
+ *
+ * 브라우저 키는 하드웨어 저장소가 아니다. 네이티브 앱보다 약한 보장이며,
+ * 그 차이는 아직 화면에 드러나지 않는다(→ `docs/08_DECISIONS.md` D19).
+ */
+export async function signWithDevice(payload: Uint8Array): Promise<string> {
+  const stored = await idb<CryptoKeyPair | undefined>("readonly", (s) => s.get(KEY_ID));
+  if (!stored?.privateKey) {
+    throw new Error("시민 ID가 없습니다. 페이지를 새로 고쳐 주세요.");
+  }
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    stored.privateKey,
+    payload as BufferSource
+  );
+  return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}

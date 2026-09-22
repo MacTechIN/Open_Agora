@@ -1,0 +1,65 @@
+{
+  "note": [
+    "작성자 서명(VS-A4)의 공용 시험 벡터.",
+    "코어(Rust)와 서버(TypeScript)가 같은 바이트를 만드는지 양쪽에서 확인한다.",
+    "이 파일은 core/src/signing.rs 가 만든 것이다. 손으로 고치지 않는다 —",
+    "고치면 구현이 아니라 기댓값을 맞추게 되고, 그러면 벡터가 아무것도 막지 못한다.",
+    "배경에 줄바꿈과 콜론이 들어 있는 것은 의도된 것이다. 구분자 기반 형식이었다면 여기서 깨진다.",
+    "id 는 서버가 붙이는 식별자다. 첫 의견의 서명이 주제 식별자를 덮으므로 이 규칙도 두 구현이 같아야 한다."
+  ],
+  "algorithm": "ECDSA P-256 / SHA-256, 서명은 P1363(r||s, 64바이트)",
+  "did": "did:key:zDnaeY3trVxVedZS1deaj8NG4QRMu5yrkGMAmcq4VWMckY7fA",
+  "created_at": 1700000000000,
+  "cases": [
+    {
+      "name": "policy",
+      "kind": "policy",
+      "author_did": "did:key:zDnaeY3trVxVedZS1deaj8NG4QRMu5yrkGMAmcq4VWMckY7fA",
+      "created_at": 1700000000000,
+      "input": {
+        "title": "탄력 근로제 직종별 차등 적용",
+        "category": "LEGISLATION",
+        "background": "개정안 발의: 업종별 기준을 두고\n노사 이견이 크다",
+        "core_question": "직종별로 기준을 달리해야 하는가?",
+        "official_source_url": "https://likms.assembly.go.kr/bill/1",
+        "target_agency": "고용노동부"
+      },
+      "payload_hex": "636976696361676f72612f706f6c6963792f76310a35373a6469643a6b65793a7a446e61655933747256785665645a53316465616a384e473451524d753579726b474d416d63713456574d636b5937664131333a3137303030303030303030303034303aed8384eba0a520eab7bceba19ceca09c20eca781eca285ebb38420ecb0a8eb93b120eca081ec9aa931313a4c454749534c4154494f4e36383aeab09ceca095ec958820ebb09cec9d983a20ec9785eca285ebb38420eab8b0eca480ec9d8420eb9190eab3a00aeb85b8ec82ac20ec9db4eab2acec9db420ed81aceb8ba434363aeca781eca285ebb384eba19c20eab8b0eca480ec9d8420eb8baceba6aced95b4ec95bc20ed9598eb8a94eab0803f33353a68747470733a2f2f6c696b6d732e617373656d626c792e676f2e6b722f62696c6c2f3131353aeab3a0ec9aa9eb85b8eb8f99ebb680",
+      "signature_hex": "df79d973411495801445003ce7f1b5fcf1a9d977bf2cb9c1b6cf0aa2d31f6bdf15106c2a9805ca991b28742e0239df52a6483eaa7328fcbc2a5087582e60d36a",
+      "id": "0577ba81fc1269c650399507bd31b06aed4a80905e149666c788443c71af2b94"
+    },
+    {
+      "name": "policy_no_agency",
+      "kind": "policy",
+      "author_did": "did:key:zDnaeY3trVxVedZS1deaj8NG4QRMu5yrkGMAmcq4VWMckY7fA",
+      "created_at": 1700000000000,
+      "input": {
+        "title": "탄력 근로제 직종별 차등 적용",
+        "category": "LEGISLATION",
+        "background": "개정안 발의: 업종별 기준을 두고\n노사 이견이 크다",
+        "core_question": "직종별로 기준을 달리해야 하는가?",
+        "official_source_url": "https://likms.assembly.go.kr/bill/1",
+        "target_agency": null
+      },
+      "payload_hex": "636976696361676f72612f706f6c6963792f76310a35373a6469643a6b65793a7a446e61655933747256785665645a53316465616a384e473451524d753579726b474d416d63713456574d636b5937664131333a3137303030303030303030303034303aed8384eba0a520eab7bceba19ceca09c20eca781eca285ebb38420ecb0a8eb93b120eca081ec9aa931313a4c454749534c4154494f4e36383aeab09ceca095ec958820ebb09cec9d983a20ec9785eca285ebb38420eab8b0eca480ec9d8420eb9190eab3a00aeb85b8ec82ac20ec9db4eab2acec9db420ed81aceb8ba434363aeca781eca285ebb384eba19c20eab8b0eca480ec9d8420eb8baceba6aced95b4ec95bc20ed9598eb8a94eab0803f33353a68747470733a2f2f6c696b6d732e617373656d626c792e676f2e6b722f62696c6c2f31303a",
+      "id": "0577ba81fc1269c650399507bd31b06aed4a80905e149666c788443c71af2b94"
+    },
+    {
+      "name": "opinion",
+      "kind": "opinion",
+      "author_did": "did:key:zDnaeY3trVxVedZS1deaj8NG4QRMu5yrkGMAmcq4VWMckY7fA",
+      "created_at": 1700000000000,
+      "input": {
+        "policy_id": "policy-abc",
+        "stance": "ALTERNATIVE",
+        "problem_definition": "일률 적용이 소상공인 부담을 키운다",
+        "evidence_source": "통계청 2026년 사업체노동력조사",
+        "evidence_url": "https://kostat.go.kr/board.es?mid=a1",
+        "actionable_solution": "업종별 가이드라인을 차등화한다"
+      },
+      "payload_hex": "636976696361676f72612f6f70696e696f6e2f76310a31303a706f6c6963792d61626335373a6469643a6b65793a7a446e61655933747256785665645a53316465616a384e473451524d753579726b474d416d63713456574d636b5937664131333a3137303030303030303030303031313a414c5445524e415449564534393aec9dbceba5a020eca081ec9aa9ec9db420ec868cec8381eab3b5ec9db820ebb680eb8bb4ec9d8420ed82a4ec9ab4eb8ba434323aed86b5eab384ecb2ad2032303236eb858420ec82acec9785ecb2b4eb85b8eb8f99eba0a5eca1b0ec82ac33363a68747470733a2f2f6b6f737461742e676f2e6b722f626f6172642e65733f6d69643d613134343aec9785eca285ebb38420eab080ec9db4eb939ceb9dbcec9db8ec9d8420ecb0a8eb93b1ed9994ed959ceb8ba4",
+      "signature_hex": "6b4914dcc80037bbe010f3a8adb031c073ecac3790f6250b43ab5ad4d9e483c830962fa6f6b66a09f35eb3a951cff76b4d6f29e74a190c8a4e1ab39be5150642",
+      "id": "e1b9e49d0f4142c0cc1af26c65c9698dcf2adfca8018072a1fee29efbd76ff31"
+    }
+  ]
+}

@@ -119,3 +119,26 @@ enum Limits {
     static let background = 300
     static let coreQuestion = 100
 }
+
+/// 서명 상태 문구와 색 (VS-A4).
+///
+/// 「검증됨」을 크게 자랑하지 않는다. 서명은 **글이 바뀌지 않았다**는 것만
+/// 말하고, 글이 사실이라는 뜻은 아니다. 대신 검증 실패는 눈에 띄게 한다 —
+/// 그것은 반드시 봐야 하는 신호다.
+func signatureText(_ status: SignatureStatus) -> String {
+    switch status {
+    case .valid: return "✓ 서명 확인"
+    case .unsigned: return "서명 없음"
+    case .invalid: return "⚠ 서명 불일치"
+    case .malformed: return "⚠ 서명 형식 오류"
+    }
+}
+
+func signatureColor(_ status: SignatureStatus) -> Color {
+    switch status {
+    case .valid: return Color(red: 0x4B / 255, green: 0x9E / 255, blue: 0x7F / 255)
+    case .unsigned: return Color(red: 0x8A / 255, green: 0x8F / 255, blue: 0x98 / 255)
+    case .invalid: return Color(red: 0xD9 / 255, green: 0x6B / 255, blue: 0x5B / 255)
+    case .malformed: return Color(red: 0xD9 / 255, green: 0xA4 / 255, blue: 0x41 / 255)
+    }
+}

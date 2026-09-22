@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::card::{CardError, DebateCard, DraftCard, StanceType};
 use crate::policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
+use crate::signing::to_hex;
 
 // ── 내부 표현 ↔ 서버 JSON ──────────────────────────────────────────
 //
@@ -114,6 +115,8 @@ struct PolicyRow {
     author_did: String,
     created_at: i64,
     #[serde(default)]
+    signature: Option<String>,
+    #[serde(default)]
     support_count: u32,
     #[serde(default)]
     alternative_count: u32,
@@ -134,6 +137,8 @@ struct CardRow {
     actionable_solution: String,
     author_did: String,
     created_at: i64,
+    #[serde(default)]
+    signature: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -157,12 +162,21 @@ pub fn open_policy_body(
     policy: DraftPolicy,
     first_opinion: DraftCard,
     author_did: String,
+    created_at: i64,
+    policy_signature: Vec<u8>,
+    opinion_signature: Vec<u8>,
 ) -> Result<String, CardError> {
     policy.validate()?;
     first_opinion.validate()?;
 
     let body = serde_json::json!({
         "author_did": author_did,
+        // 시각을 클라이언트가 정한다. 서명이 시각을 덮으려면 서명하는 쪽이
+        // 그 값을 알아야 하기 때문이다. 서버가 정하면 서버가 시각을 바꿔도
+        // 검증이 통과한다. 대신 서버가 허용 범위를 좁게 본다.
+        "created_at": created_at,
+        "policy_signature": to_hex(&policy_signature),
+        "opinion_signature": to_hex(&opinion_signature),
         "policy": PolicyBody {
             title: policy.title.trim(),
             category: category_json(policy.category),
@@ -183,11 +197,18 @@ pub fn open_policy_body(
 }
 
 /// 의견 추가 요청 본문을 만든다.
-pub fn add_opinion_body(card: DraftCard, author_did: String) -> Result<String, CardError> {
+pub fn add_opinion_body(
+    card: DraftCard,
+    author_did: String,
+    created_at: i64,
+    signature: Vec<u8>,
+) -> Result<String, CardError> {
     card.validate()?;
 
     let body = serde_json::json!({
         "author_did": author_did,
+        "created_at": created_at,
+        "signature": to_hex(&signature),
         "stance": stance_json(card.stance),
         "problem_definition": card.problem_definition.trim(),
         "evidence_source": card.evidence_source.trim(),
@@ -233,6 +254,7 @@ pub fn parse_policies(json: String) -> Result<Vec<PolicySummary>, CardError> {
                     target_agency: r.target_agency,
                     author_did: r.author_did,
                     created_at,
+                    signature: r.signature,
                 },
                 support_count: r.support_count,
                 alternative_count: r.alternative_count,
@@ -260,6 +282,7 @@ pub fn parse_opinions(json: String) -> Result<Vec<DebateCard>, CardError> {
                 actionable_solution: r.actionable_solution,
                 author_did: r.author_did,
                 created_at: r.created_at,
+                signature: r.signature,
             })
         })
         .collect()
@@ -304,7 +327,15 @@ mod tests {
 
         #[test]
         fn 주제_등록_본문을_만든다() {
-            let body = open_policy_body(draft_policy(), draft_card(), DID.into()).unwrap();
+            let body = open_policy_body(
+                draft_policy(),
+                draft_card(),
+                DID.into(),
+                1_700_000_000_000,
+                vec![],
+                vec![],
+            )
+            .unwrap();
             let v: serde_json::Value = serde_json::from_str(&body).unwrap();
 
             assert_eq!(v["author_did"], DID);
@@ -315,7 +346,15 @@ mod tests {
         #[test]
         fn 앞뒤_공백을_없애고_보낸다() {
             // 서버도 다듬지만, 보내는 쪽에서 정리해야 식별자 해시가 일치한다.
-            let body = open_policy_body(draft_policy(), draft_card(), DID.into()).unwrap();
+            let body = open_policy_body(
+                draft_policy(),
+                draft_card(),
+                DID.into(),
+                1_700_000_000_000,
+                vec![],
+                vec![],
+            )
+            .unwrap();
             let v: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(v["policy"]["title"], "탄력 근로제");
             assert_eq!(v["first_opinion"]["problem_definition"], "행정 비용이 크다");
@@ -324,7 +363,15 @@ mod tests {
         #[test]
         fn 빈_소관기관은_null로_보낸다() {
             // 빈 문자열을 보내면 서버에 공백만 든 값이 저장된다.
-            let body = open_policy_body(draft_policy(), draft_card(), DID.into()).unwrap();
+            let body = open_policy_body(
+                draft_policy(),
+                draft_card(),
+                DID.into(),
+                1_700_000_000_000,
+                vec![],
+                vec![],
+            )
+            .unwrap();
             let v: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert!(v["policy"]["target_agency"].is_null());
         }
@@ -334,16 +381,25 @@ mod tests {
             // 왕복 없이 바로 알려주는 편이 낫고, 네트워크가 없을 때도 알 수 있다.
             let mut bad = draft_card();
             bad.evidence_url = "".into();
-            assert!(add_opinion_body(bad, DID.into()).is_err());
+            assert!(add_opinion_body(bad, DID.into(), 1_700_000_000_000, vec![]).is_err());
 
             let mut bad_policy = draft_policy();
             bad_policy.core_question = "".into();
-            assert!(open_policy_body(bad_policy, draft_card(), DID.into()).is_err());
+            assert!(open_policy_body(
+                bad_policy,
+                draft_card(),
+                DID.into(),
+                1_700_000_000_000,
+                vec![],
+                vec![]
+            )
+            .is_err());
         }
 
         #[test]
         fn 의견_추가_본문을_만든다() {
-            let body = add_opinion_body(draft_card(), DID.into()).unwrap();
+            let body =
+                add_opinion_body(draft_card(), DID.into(), 1_700_000_000_000, vec![]).unwrap();
             let v: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(v["stance"], "OPPOSE");
             assert_eq!(v["author_did"], DID);

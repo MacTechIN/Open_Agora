@@ -14,7 +14,9 @@
     "check:components": "node scripts/check-nested-components.mjs",
     "check:writegate": "node scripts/check-write-gate.mjs",
     "check:imports": "node scripts/check-client-imports.mjs",
-    "check": "npm run check:contracts && npm run check:components && npm run check:writegate && npm run check:imports && npm run typecheck"
+    "check": "npm run check:contracts && npm run check:signing && npm run check:components && npm run check:writegate && npm run check:imports && npm run typecheck",
+    "check:signing": "node --experimental-strip-types scripts/check-signing.mjs",
+    "e2e:signing": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-signing.mjs"
   },
   "dependencies": {
     "next": "^15.5.25",
