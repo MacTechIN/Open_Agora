@@ -175,7 +175,7 @@ private fun CountedField(
         )
         Text(
             // 넘긴 만큼을 알려준다. 한도만 보여주면 얼마나 줄여야 할지 알 수 없다.
-            if (over) "$count / $limit자 — ${count - limit}자 초과" else "$count / $limit자",
+            if (over) "$count / ${limit}자 — ${count - limit}자 초과" else "$count / ${limit}자",
             style = MaterialTheme.typography.bodySmall,
             color = if (over) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant,

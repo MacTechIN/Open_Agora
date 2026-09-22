@@ -37,13 +37,12 @@ import java.io.File
  */
 class MainActivity : ComponentActivity() {
 
-    private lateinit var store: CardStore
-    private lateinit var identity: Result<DeviceIdentity.Identity>
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        identity = runCatching { DeviceIdentity.loadOrCreate() }
+        // Result는 인라인 클래스라 lateinit 프로퍼티로 둘 수 없다.
+        // onCreate 지역 변수로 만들어 컴포지션에 넘긴다.
+        val identity = runCatching { DeviceIdentity.loadOrCreate() }
         val dbPath = File(filesDir, "cards.db").absolutePath
         val opened = runCatching { CardStore(dbPath) }
 
@@ -51,12 +50,11 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     opened.fold(
-                        onSuccess = { s ->
-                            store = s
+                        onSuccess = { store ->
                             MainScreen(
                                 info = remember { coreInfo() },
                                 identity = identity,
-                                store = s,
+                                store = store,
                             )
                         },
                         onFailure = { FatalError("저장소를 열지 못했습니다", it) },

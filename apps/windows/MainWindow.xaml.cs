@@ -235,12 +235,14 @@ public sealed partial class MainWindow : Window
 
     private static UIElement Badge(StanceType stance)
     {
+        // 네임스페이스가 CivicAgora.Windows이므로 Windows.UI는
+        // CivicAgora.Windows.UI로 해석된다. global:: 로 명시해야 한다.
         var (label, color) = stance switch
         {
             // 좌우 어느 쪽도 우대하지 않도록 채도를 맞춘다.
-            StanceType.Support => ("찬성", Windows.UI.Color.FromArgb(255, 46, 125, 111)),
-            StanceType.Alternative => ("대안", Windows.UI.Color.FromArgb(255, 106, 90, 205)),
-            _ => ("반대", Windows.UI.Color.FromArgb(255, 158, 91, 74)),
+            StanceType.Support => ("찬성", global::Windows.UI.Color.FromArgb(255, 46, 125, 111)),
+            StanceType.Alternative => ("대안", global::Windows.UI.Color.FromArgb(255, 106, 90, 205)),
+            _ => ("반대", global::Windows.UI.Color.FromArgb(255, 158, 91, 74)),
         };
         return new Border
         {
