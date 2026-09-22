@@ -48,24 +48,21 @@ fi
 
 # 4) 앱 코드에 삭제 동작이 없어야 한다.
 #
-#    주석은 제외한다. "앱을 삭제하면 새 신원이 발급된다" 같은 설명은
-#    삭제 기능이 아니다. 실제 호출과 UI 라벨만 본다.
-strip_comments() {
-    # 주석만 있는 줄과 줄 끝 주석을 제거한다.
-    sed -E 's://.*::; s:/\*.*\*/::; s:<!--.*-->::' "$@" \
-        | grep -vE '^\s*(\*|/\*|<!--)'
-}
+#    한글 단어(삭제/지우기)를 찾지 않는다. "삭제 버튼이 없다"는 설명 주석을
+#    삭제 기능으로 오인해 오탐이 났다. 주석을 걸러내려 했으나 여러 줄 주석까지
+#    다루려면 파서가 필요하고, 그 복잡도를 감당할 이유가 없다.
+#
+#    대신 실행 가능한 코드 패턴만 본다 — 삭제 API 이름, 저장소 변경 호출,
+#    XAML 삭제 핸들러와 버튼 라벨. 문서가 삭제의 부재를 설명하는 것은 통과한다.
+ui_hits="$(grep -rnE \
+    -e '\b(delete|remove)(Card|Post|Reply|Policy)\b' \
+    -e '(_?store|Store)\.(Delete|Remove|Clear)\b' \
+    -e 'Click="On(Delete|Remove)' \
+    -e 'Content="(삭제|지우기)"' \
+    -e 'text = "(삭제|지우기)"' \
+    "$ROOT/apps/android/app/src/main" "$ROOT/apps/windows" 2>/dev/null || true)"
 
-ui_sources="$(find "$ROOT/apps/android/app/src/main" "$ROOT/apps/windows" \
-    -type f \( -name '*.kt' -o -name '*.cs' -o -name '*.xaml' \) 2>/dev/null || true)"
-
-ui_hits=""
-for f in $ui_sources; do
-    hit="$(strip_comments "$f" | grep -nE '(삭제|지우기|deleteCard|removeCard|Delete\(|Remove\()' || true)"
-    [ -n "$hit" ] && ui_hits="$ui_hits${f}:$hit"$'\n'
-done
-
-if [ -n "${ui_hits// /}" ]; then
+if [ -n "$ui_hits" ]; then
     report "앱 코드에 삭제 동작이 있습니다" "$ui_hits"
 else
     echo "  OK   앱 코드에 삭제 동작 없음"

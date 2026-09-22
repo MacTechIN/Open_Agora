@@ -5,56 +5,84 @@
     Title="CivicAgora">
 
     <ScrollViewer>
-        <StackPanel Padding="32" Spacing="12">
-            <TextBlock Text="CivicAgora"
-                       Style="{StaticResource TitleLargeTextBlockStyle}" />
-            <TextBlock Text="시민 공론장 · 기기 신원 (VS-A2)"
-                       Style="{StaticResource BodyTextBlockStyle}" />
+        <StackPanel Padding="28" Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
 
+            <TextBlock Text="CivicAgora" Style="{StaticResource TitleLargeTextBlockStyle}" />
+            <TextBlock Text="시민 공론장 · 로컬 카드 (VS-A3)" Style="{StaticResource BodyTextBlockStyle}" />
+
+            <!-- ── 3단 구조화 입력 ────────────────────────────────────
+                 단일 텍스트 박스를 쓰지 않는 이유는 감정적 선동을 억제하기
+                 위해서다. 세 필드 모두 필수이며 합계 500자다.
+                 명세: docs/00_PRODUCT_SPEC.md §3 -->
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="20"
-                    Margin="0,12,0,0">
+                    BorderThickness="1" CornerRadius="8" Padding="20">
                 <StackPanel Spacing="12">
+                    <TextBlock Text="의견 작성" Style="{StaticResource BodyStrongTextBlockStyle}" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <RadioButton x:Name="StanceSupport" Content="찬성" GroupName="Stance" IsChecked="True" />
+                        <RadioButton x:Name="StanceAlternative" Content="대안" GroupName="Stance" />
+                        <RadioButton x:Name="StanceOppose" Content="반대" GroupName="Stance" />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="1. 문제 정의" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBox x:Name="ProblemBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
+                        <TextBlock x:Name="ProblemCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="2. 데이터 및 팩트 근거" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBox x:Name="EvidenceBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
+                        <TextBlock x:Name="EvidenceCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="출처 URL (필수)" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBox x:Name="UrlBox" PlaceholderText="https://kostat.go.kr/..." />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="3. 실행 가능한 해결책" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBox x:Name="SolutionBox" TextWrapping="Wrap" AcceptsReturn="True" Height="70" />
+                        <TextBlock x:Name="SolutionCount" Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+
+                    <Button x:Name="SubmitButton" Content="등록" Click="OnSubmit" IsEnabled="False" />
+
+                    <TextBlock Text="등록한 글은 수정하거나 지울 수 없습니다."
+                               Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock x:Name="ErrorText" Foreground="Crimson" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- ── 카드 목록 ──────────────────────────────────────────
+                 최신순이다. 브리징 점수순은 VS-F3, 3열 배치는 VS-D1에서.
+                 삭제 버튼이 없다 (G-IMMUT). -->
+            <TextBlock x:Name="ListHeader" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <StackPanel x:Name="CardsPanel" Spacing="10" />
+
+            <!-- ── 신원 및 코어 ───────────────────────────────────── -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,8,0,0">
+                <StackPanel Spacing="10">
                     <StackPanel>
                         <TextBlock Text="내 DID" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="DidText" TextWrapping="Wrap"
-                                   Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock x:Name="DidText" TextWrapping="Wrap" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     </StackPanel>
                     <StackPanel>
                         <TextBlock Text="키 보호" Style="{StaticResource CaptionTextBlockStyle}" />
                         <TextBlock x:Name="ProtectionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="코어" Style="{StaticResource CaptionTextBlockStyle}" />
+                        <TextBlock x:Name="CoreText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="20"
-                    Margin="0,12,0,0">
-                <StackPanel Spacing="12">
-                    <StackPanel>
-                        <TextBlock Text="코어 버전" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="VersionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="명세 계약" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="SpecText" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="빌드 대상" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="TargetText" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="빌드 프로필" Style="{StaticResource CaptionTextBlockStyle}" />
-                        <TextBlock x:Name="ProfileText" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
         </StackPanel>
     </ScrollViewer>
 </Window>
