@@ -232,6 +232,8 @@ dependencies = [
  "bs58",
  "p256",
  "rusqlite",
+ "serde",
+ "serde_json",
  "sha2",
  "thiserror",
  "unicode-segmentation",

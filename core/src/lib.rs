@@ -17,12 +17,14 @@
 
 uniffi::include_scaffolding!("civicagora");
 
+mod api;
 mod card;
 mod identity;
 mod info;
 mod policy;
 mod store;
 
+pub use api::{add_opinion_body, open_policy_body, parse_id, parse_opinions, parse_policies};
 pub use card::{grapheme_count, CardError, DebateCard, DraftCard, StanceType};
 pub use identity::{did_from_public_key, public_key_from_did, verify_signature, IdentityError};
 pub use info::{core_info, CoreInfo, SPEC_REVISION};
