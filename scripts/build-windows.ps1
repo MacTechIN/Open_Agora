@@ -83,6 +83,35 @@ foreach ($tool in @('cargo', 'dotnet')) {
 }
 Write-Host ("  {0,-10} {1}" -f 'msbuild', $script:MSBuild)
 
+# MSBuild가 있어도 .NET SDK 확인자가 없으면 Microsoft.NET.Sdk를 못 찾는다.
+# Build Tools를 워크로드 없이 설치하면 이 상태가 되며, 오류 메시지(MSB4236)만
+# 보면 원인을 짐작하기 어렵다. 미리 확인해 무엇을 추가해야 하는지 알린다.
+$sdkDir = Join-Path (Split-Path -Parent (Split-Path -Parent $script:MSBuild)) 'Sdks\Microsoft.NET.Sdk'
+if (-not (Test-Path $sdkDir)) {
+    Write-Host "`n✗ MSBuild에 .NET SDK 확인자가 없습니다." -ForegroundColor Red
+    Write-Host @"
+
+Visual Studio Build Tools에 .NET 워크로드가 설치되지 않았습니다.
+이대로 빌드하면 MSB4236 (Microsoft.NET.Sdk를 찾을 수 없음)이 납니다.
+
+해결 — 다음 중 하나:
+
+  1) 시작 메뉴 → Visual Studio Installer → Build Tools 2022 → 수정
+     체크: '.NET 데스크톱 빌드 도구'
+           'Windows 앱 개발 빌드 도구'   (WinUI 리소스 생성에 필요)
+
+  2) 관리자 PowerShell에서:
+
+     & "`${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe" modify ``
+        --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" ``
+        --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools ``
+        --add Microsoft.VisualStudio.Workload.VCTools ``
+        --add Microsoft.VisualStudio.Component.Windows11SDK.22621 ``
+        --quiet --wait
+"@
+    exit 1
+}
+
 # ── C# 바인딩 생성기 ──────────────────────────────────────────────
 $bindgenTag = 'v0.9.2+v0.28.3'
 if (-not (Get-Command uniffi-bindgen-cs -ErrorAction SilentlyContinue)) {
