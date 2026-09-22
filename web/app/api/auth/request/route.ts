@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, ConfigError, emailAlreadyUsed, hashEmail, issueCode, migrateAuth } from "@/lib/auth";
-import { sendVerificationCode } from "@/lib/mail";
+import { MailError, sendVerificationCode } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // 코드를 응답에 담지 않는다. 담으면 남의 이메일로 가입할 수 있다.
     return NextResponse.json({ sent: true });
   } catch (error) {
-    if (error instanceof AuthError) {
+    if (error instanceof AuthError || error instanceof MailError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     // 설정 누락은 사용자가 고칠 수 없다. 무엇이 빠졌는지 알려야 운영자가

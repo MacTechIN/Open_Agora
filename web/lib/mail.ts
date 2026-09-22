@@ -7,6 +7,15 @@
  */
 const FROM = process.env.MAIL_FROM ?? "CivicAgora <onboarding@resend.dev>";
 
+/**
+ * 메일 발송 실패.
+ *
+ * 사용자가 고칠 수 있는 경우(주소 오타)와 운영자가 고쳐야 하는 경우(발신
+ * 도메인 미인증)가 섞여 있으므로, 서버가 받은 이유를 그대로 전달한다.
+ * 일반 500 으로 묻으면 어느 쪽인지 알 수 없다.
+ */
+export class MailError extends Error {}
+
 export async function sendVerificationCode(email: string, code: string): Promise<void> {
   const key = process.env.RESEND_API_KEY;
 
@@ -43,8 +52,18 @@ export async function sendVerificationCode(email: string, code: string): Promise
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    // 메일 본문이나 키가 로그에 남지 않도록 상태 코드만 남긴다.
-    console.error(`[civicagora] 메일 발송 실패 ${response.status}`, detail.slice(0, 200));
-    throw new Error("인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    // 키가 로그에 남지 않도록 상태 코드와 앞부분만 남긴다.
+    console.error(`[civicagora] 메일 발송 실패 ${response.status}`, detail.slice(0, 300));
+
+    // Resend 의 테스트 발신 주소는 계정 소유자에게만 보낼 수 있다.
+    // 도메인 인증 전에 남에게 보내려 하면 403 이 온다. 흔한 상황이라
+    // 무엇을 해야 하는지 알려준다.
+    if (response.status === 403 && FROM.includes("resend.dev")) {
+      throw new MailError(
+        "아직 발신 도메인이 인증되지 않아 가입자 본인 이메일로만 보낼 수 있습니다. " +
+        "운영자가 Resend 에서 도메인을 인증해야 다른 주소로도 발송됩니다."
+      );
+    }
+    throw new MailError("인증 메일을 보내지 못했습니다. 주소를 확인하고 잠시 후 다시 시도해 주세요.");
   }
 }
