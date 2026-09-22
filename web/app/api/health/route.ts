@@ -22,6 +22,16 @@ export async function GET() {
   const authSecret = process.env.AUTH_SECRET;
   const resendKey = process.env.RESEND_API_KEY;
 
+  // 비슷한 이름으로 잘못 넣은 경우를 찾아준다. 이름이 한 글자만 달라도
+  // 없는 것과 같은데, 화면에서는 값이 들어 있는 것처럼 보여 헷갈린다.
+  // 이름만 보고 값은 절대 담지 않는다.
+  const looksRelated = Object.keys(process.env)
+    .filter((name) =>
+      /AUTH|SECRET|RESEND|MAIL|CIVIC|AGORA/i.test(name) &&
+      !["AUTH_SECRET", "RESEND_API_KEY", "MAIL_FROM"].includes(name)
+    )
+    .sort();
+
   return NextResponse.json({
     ok:
       Boolean(process.env.DATABASE_URL) &&
@@ -42,6 +52,9 @@ export async function GET() {
       note: "없으면 인증코드가 메일로 가지 않고 서버 로그에만 남습니다.",
     },
     // 환경변수는 배포 시점에 굳는다. 추가한 뒤 재배포하지 않으면 반영되지 않는다.
+    // 우리가 쓰지 않는 비슷한 이름이 있으면 오타일 가능성이 높다.
+    unused_similar_names: looksRelated,
+    expected_names: ["DATABASE_URL", "AUTH_SECRET", "RESEND_API_KEY"],
     deployed_at: new Date().toISOString(),
     hint:
       "값을 추가한 뒤 반드시 재배포해야 반영됩니다. " +
