@@ -132,6 +132,22 @@ public sealed class ApiClient
         return CivicagoraMethods.ParseId(json);
     }
 
+    /// <summary>
+    /// 이 기기가 회원인가.
+    ///
+    /// 시작할 때 조용히 확인한다. 이것이 없으면 사용자는 글을 다 쓰고 등록을
+    /// 누른 뒤에야 막힌다 — 특히 기기를 바꾼 사람은 분명히 가입했는데 아니라고
+    /// 하니 이유를 알 수 없다.
+    /// </summary>
+    public async Task<bool> IsMemberAsync(string did)
+    {
+        var json = await SendAsync(HttpMethod.Get,
+            $"/api/auth/status?did={Uri.EscapeDataString(did)}");
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty("member", out var value)
+               && value.ValueKind == System.Text.Json.JsonValueKind.True;
+    }
+
     /// <summary>인증코드를 요청한다.</summary>
     public async Task RequestCodeAsync(string email)
     {

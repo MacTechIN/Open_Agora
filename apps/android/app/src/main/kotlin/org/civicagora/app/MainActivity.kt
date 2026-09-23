@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -79,9 +80,16 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
     var error by remember { mutableStateOf<String?>(null) }
     var memberStatus by remember { mutableStateOf<String?>(null) }
     var codeSent by remember { mutableStateOf(false) }
+    // 회원 여부. null 이면 아직 확인하지 못했다는 뜻이다 — 확인 전에
+    // "등록하세요"를 띄우면 이미 회원인 사람을 헷갈리게 한다.
+    var isMember by remember { mutableStateOf<Boolean?>(null) }
 
     /** 실패 문장은 서버가 보낸 것을 그대로 보여준다. 사용자가 고칠 수 있는 내용이다. */
     fun reason(e: Throwable): String = e.message ?: e::class.java.simpleName
+
+    /** 회원이 아니라서 막힌 것인가. 맞으면 오류로 끝내지 않고 길을 알려준다. */
+    fun needsRegistration(e: Throwable): Boolean =
+        e.message?.contains("시민 인증") == true
 
     suspend fun loadPlaza() {
         busy = true
@@ -108,7 +116,14 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
         busy = false
     }
 
-    LaunchedEffect(Unit) { loadPlaza() }
+    LaunchedEffect(Unit) {
+        loadPlaza()
+        // 이 기기가 회원인지 조용히 확인한다. 막다른 길에 도착한 뒤에
+        // 안내하는 것은 안내가 아니다. 실패하면 아무것도 하지 않는다.
+        identity.getOrNull()?.did?.let { did ->
+            runCatching { api.isMember(did) }.onSuccess { isMember = it }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -142,6 +157,10 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
 
+        if (isMember == false) {
+            MemberNotice(onGo = { screen = Screen.MEMBER })
+        }
+
         when (screen) {
             Screen.PLAZA -> PlazaScreen(
                 policies = policies,
@@ -162,7 +181,14 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
                             } else scope.launch {
                                 busy = true
                                 runCatching { api.addOpinion(summary.policy.id, draft, did) }
-                                    .onFailure { error = "의견을 올리지 못했습니다\n${reason(it)}" }
+                                    .onFailure {
+                                        if (needsRegistration(it)) {
+                                            isMember = false
+                                            screen = Screen.MEMBER
+                                        } else {
+                                            error = "의견을 올리지 못했습니다\n${reason(it)}"
+                                        }
+                                    }
                                     .onSuccess { error = null }
                                 busy = false
                                 loadDetail(summary.policy.id)
@@ -190,7 +216,12 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
                                     loadDetail(id)
                                 }
                                 .onFailure {
-                                    error = "주제를 올리지 못했습니다\n${reason(it)}"
+                                    if (needsRegistration(it)) {
+                                        isMember = false
+                                        screen = Screen.MEMBER
+                                    } else {
+                                        error = "주제를 올리지 못했습니다\n${reason(it)}"
+                                    }
                                     busy = false
                                 }
                         }
@@ -228,6 +259,7 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
                             runCatching { api.verify(email, code, did) }
                                 .onSuccess {
                                     codeSent = false
+                                    isMember = true
                                     memberStatus = "인증이 끝났습니다. 이제 글을 쓸 수 있습니다."
                                     error = null
                                 }
@@ -237,6 +269,31 @@ private fun App(identity: Result<DeviceIdentity.Identity>) {
                     },
                 )
             }
+        }
+    }
+}
+
+/**
+ * 기기 등록이 필요하다는 안내.
+ *
+ * 왜 그런지까지 적는다. 기기를 바꾼 사람은 분명히 가입했는데 아니라고 하니
+ * 이유를 알 수 없고, 이유를 모르면 고장으로 본다.
+ */
+@Composable
+private fun MemberNotice(onGo: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("이 기기를 먼저 등록해 주세요", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "시민 ID는 기기 안에서 만들어지고 기기 밖으로 나오지 않습니다. " +
+                    "이미 인증하셨더라도 같은 이메일로 다시 인증하면 이 기기가 추가됩니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(onClick = onGo) { Text("이 기기 등록하기") }
         }
     }
 }

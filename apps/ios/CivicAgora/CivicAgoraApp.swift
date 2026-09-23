@@ -23,6 +23,9 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     @Published var memberStatus: String?
     @Published var codeSent = false
+    /// 회원 여부. nil 이면 아직 확인하지 못했다는 뜻 — 확인 전에
+    /// "등록하세요"를 띄우면 이미 회원인 사람을 헷갈리게 한다.
+    @Published var isMember: Bool?
 
     let api = ApiClient()
     let identity: Result<DeviceIdentity.Identity, Error>
@@ -34,8 +37,23 @@ final class AppModel: ObservableObject {
     var did: String? { try? identity.get().did }
 
     /// 실패 문장은 서버가 보낸 것을 그대로 보여준다. 사용자가 고칠 수 있는 내용이다.
+    ///
+    /// 회원이 아니라서 막힌 것이면 오류로 끝내지 않고 길을 알려준다 —
+    /// 기기를 바꾼 사람은 분명히 가입했는데 아니라고 하니 이유를 알 수 없다.
     private func fail(_ title: String, _ error: Error) {
-        self.error = "\(title)\n\(error.localizedDescription)"
+        let message = error.localizedDescription
+        if message.contains("시민 인증") {
+            isMember = false
+            self.error = nil
+            return
+        }
+        self.error = "\(title)\n\(message)"
+    }
+
+    /// 이 기기가 회원인지 조용히 확인한다. 실패하면 아무것도 하지 않는다.
+    func checkMembership() async {
+        guard let did else { return }
+        isMember = try? await api.isMember(did: did)
     }
 
     func loadPlaza() async {
@@ -127,6 +145,7 @@ final class AppModel: ObservableObject {
         do {
             try await api.verify(email: email, code: code, did: did)
             codeSent = false
+            isMember = true
             memberStatus = "인증이 끝났습니다. 이제 글을 쓸 수 있습니다."
             error = nil
         } catch {
@@ -153,7 +172,10 @@ struct RootView: View {
                 }
         }
         .environmentObject(model)
-        .task { await model.loadPlaza() }
+        .task {
+            await model.loadPlaza()
+            await model.checkMembership()
+        }
     }
 }
 
@@ -167,5 +189,28 @@ struct ErrorNotice: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+
+/**
+ * 기기 등록이 필요하다는 안내 (D21).
+ *
+ * 왜 그런지까지 적습니다. 기기를 바꾼 사람은 분명히 가입했는데 아니라고 하니
+ * 이유를 알 수 없고, 이유를 모르면 고장으로 봅니다.
+ */
+struct MemberNotice: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("이 기기를 먼저 등록해 주세요").font(.subheadline.bold())
+            Text("시민 ID는 기기 안에서 만들어지고 기기 밖으로 나오지 않습니다. "
+                 + "이미 인증하셨더라도 같은 이메일로 다시 인증하면 이 기기가 추가됩니다.")
+                .font(.caption).foregroundStyle(.secondary)
+            NavigationLink("이 기기 등록하기") { MemberView() }
+                .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
     }
 }

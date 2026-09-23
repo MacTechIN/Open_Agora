@@ -29,6 +29,8 @@ public sealed partial class MainWindow : Window
     private List<PolicySummary> _allPolicies = new();
     private string _search = "";
     private PolicyCategory? _categoryFilter;
+    /// <summary>회원 여부. null 이면 아직 확인하지 못했다는 뜻이다.</summary>
+    private bool? _isMember;
 
     /// <summary>정렬 기준. 웹과 같은 순서로 둔다.</summary>
     private static readonly (string Label, string Key)[] Sorts =
@@ -98,6 +100,10 @@ public sealed partial class MainWindow : Window
 
         ShowIdentity();
         ShowCore();
+
+        // 이 기기가 회원인지 조용히 확인한다. 막다른 길에 도착한 뒤에
+        // 안내하는 것은 안내가 아니다.
+        _ = CheckMembershipAsync();
         RevalidateTopic();
         _ = LoadPlazaAsync();
     }
@@ -634,6 +640,39 @@ public sealed partial class MainWindow : Window
         finally { SetBusy(false); }
     }
 
+    /// <summary>
+    /// 이 기기가 회원인지 확인하고, 아니면 알린다.
+    ///
+    /// 확인에 실패하면 아무것도 하지 않는다. 네트워크가 잠깐 끊겼다고
+    /// "등록하세요"를 띄우면 이미 회원인 사람을 헷갈리게 한다.
+    /// </summary>
+    private async Task CheckMembershipAsync()
+    {
+        if (_authorDid is null) return;
+        try
+        {
+            _isMember = await _api.IsMemberAsync(_authorDid);
+            if (_isMember == false) ShowMemberNotice();
+        }
+        catch { /* 확인 실패는 알리지 않는다 — 쓰기 시점에 서버가 다시 본다 */ }
+    }
+
+    /// <summary>기기 등록이 필요하다고 알린다. 왜 그런지까지 적는다.</summary>
+    private void ShowMemberNotice()
+    {
+        Notice.Title = "이 기기를 먼저 등록해 주세요";
+        Notice.Message =
+            "시민 ID는 기기 안에서 만들어지고 기기 밖으로 나오지 않습니다. " +
+            "이미 인증하셨더라도 같은 이메일로 다시 인증하면 이 기기가 추가됩니다.";
+        Notice.Severity = InfoBarSeverity.Informational;
+
+        // 안내만 하고 길을 알려주지 않으면 사용자가 다시 찾아 헤맨다.
+        var go = new Button { Content = "이 기기 등록하기" };
+        go.Click += (_, _) => { Notice.IsOpen = false; Show(MemberView); };
+        Notice.ActionButton = go;
+        Notice.IsOpen = true;
+    }
+
     private bool RequireIdentity()
     {
         if (_authorDid is not null) return true;
@@ -694,6 +733,15 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void Fail(string title, Exception ex)
     {
+        // 회원이 아니라서 막힌 것이면 오류로 끝내지 않고 길을 알려준다.
+        // 서버 문구가 바뀌어도 동작하도록 실패해도 무해하게 둔다.
+        if (ex.Message.Contains("시민 인증"))
+        {
+            _isMember = false;
+            ShowMemberNotice();
+            return;
+        }
+
         Notice.Title = title;
         Notice.Message = ex.Message;
         Notice.Severity = InfoBarSeverity.Error;

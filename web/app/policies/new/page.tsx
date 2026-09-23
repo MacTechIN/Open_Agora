@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CountedField, { PlainField } from "@/components/CountedField";
 import ErrorNotice from "@/components/ErrorNotice";
+import MemberGate from "@/components/MemberGate";
 import OpinionForm, { EMPTY_OPINION, opinionReady, type OpinionValue } from "@/components/OpinionForm";
 import { loadOrCreateDid, signWithDevice } from "@/lib/identity";
 import { opinionPayload, policyPayload } from "@/lib/signing";
@@ -106,7 +107,7 @@ export default function NewPolicy() {
   }
 
   return (
-    <>
+    <MemberGate>
       <h2 style={{ marginTop: 0 }}>주제 올리기</h2>
 
       <div className="card">
@@ -164,6 +165,6 @@ export default function NewPolicy() {
       <div className="hint" style={{ marginTop: 10 }}>
         올린 글은 수정하거나 지울 수 없습니다. 누구도 기록을 바꿀 수 없게 만든 공론장이기 때문입니다.
       </div>
-    </>
+    </MemberGate>
   );
 }

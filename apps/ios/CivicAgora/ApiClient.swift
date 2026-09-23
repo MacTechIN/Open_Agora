@@ -123,6 +123,19 @@ actor ApiClient {
         return try parseId(json: await send("POST", "/api/policies/\(policyId)/opinions", body: body))
     }
 
+    /// 이 기기가 회원인가.
+    ///
+    /// 시작할 때 조용히 확인한다. 이것이 없으면 사용자는 글을 다 쓰고 등록을
+    /// 누른 뒤에야 막힌다 — 특히 기기를 바꾼 사람은 분명히 가입했는데 아니라고
+    /// 하니 이유를 알 수 없다.
+    func isMember(did: String) async throws -> Bool {
+        let escaped = did.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? did
+        let json = try await send("GET", "/api/auth/status?did=\(escaped)")
+        guard let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)),
+              let dictionary = object as? [String: Any] else { return false }
+        return dictionary["member"] as? Bool ?? false
+    }
+
     /// 인증코드를 요청한다.
     func requestCode(email: String) async throws {
         try throwIfError(await send("POST", "/api/auth/request", body: encode(["email": email])))

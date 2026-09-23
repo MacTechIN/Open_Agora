@@ -123,6 +123,18 @@ class ApiClient(baseUrl: String = DEFAULT_BASE_URL) {
         return parseId(send("POST", "/api/policies/$policyId/opinions", body))
     }
 
+    /**
+     * 이 기기가 회원인가.
+     *
+     * 시작할 때 조용히 확인한다. 이것이 없으면 사용자는 글을 다 쓰고 등록을
+     * 누른 뒤에야 막힌다 — 특히 기기를 바꾼 사람은 분명히 가입했는데 아니라고
+     * 하니 이유를 알 수 없다.
+     */
+    suspend fun isMember(did: String): Boolean {
+        val json = send("GET", "/api/auth/status?did=" + java.net.URLEncoder.encode(did, "UTF-8"))
+        return runCatching { JSONObject(json).optBoolean("member", false) }.getOrDefault(false)
+    }
+
     /** 인증코드를 요청한다. */
     suspend fun requestCode(email: String) {
         val body = JSONObject().put("email", email).toString()

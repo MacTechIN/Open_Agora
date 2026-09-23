@@ -104,6 +104,7 @@ struct PlazaView: View {
 
                 if model.busy { ProgressView() }
                 if let error = model.error { ErrorNotice(message: error) }
+                if model.isMember == false { MemberNotice() }
 
                 if shown.isEmpty {
                     Text(filtered

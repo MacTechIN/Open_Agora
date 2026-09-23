@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ErrorNotice from "@/components/ErrorNotice";
+import MemberGate from "@/components/MemberGate";
 import OpinionForm, { EMPTY_OPINION, opinionReady, type OpinionValue } from "@/components/OpinionForm";
 import { loadOrCreateDid, signWithDevice } from "@/lib/identity";
 import { opinionPayload } from "@/lib/signing";
@@ -59,6 +60,7 @@ export default function AddOpinion({ policyId, question }: { policyId: string; q
   }
 
   return (
+    <MemberGate>
     <div className="card" style={{ marginTop: 28 }}>
       <h3 style={{ marginTop: 0 }}>내 의견 남기기</h3>
       <div className="hint" style={{ marginTop: -8, marginBottom: 16 }}>
@@ -77,5 +79,6 @@ export default function AddOpinion({ policyId, question }: { policyId: string; q
         올린 글은 수정하거나 지울 수 없습니다.
       </div>
     </div>
+    </MemberGate>
   );
 }
