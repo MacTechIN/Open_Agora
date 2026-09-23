@@ -1,0 +1,48 @@
+{
+  "note": [
+    "ZK-Email 가입에 허용할 도메인과 그 DKIM 셀렉터 (VS-C2).",
+    "이 목록이 가입의 신뢰 뿌리다. 여기 있는 도메인의 DKIM 키가 깨지면 그 도메인",
+    "사용자를 무제한 위조할 수 있으므로, 2048비트 미만은 넣지 않는다.",
+    "",
+    "셀렉터는 DNS 로 열거할 수 없다. 그 도메인이 보낸 메일의 DKIM-Signature 헤더",
+    "s= 값에만 있다. 그래서 이 목록은 사람이 메일을 받아서 채워야 한다.",
+    "scripts/dkim-watch.py 가 폐기와 키 길이 하락을 지켜본다.",
+    "",
+    "측정일: 2026-09-23"
+  ],
+  "min_bits": 2048,
+  "domains": [
+    { "domain": "outlook.com", "selector": "selector1", "bits": 2048, "확인": "DNS 실측" },
+    { "domain": "hotmail.com", "selector": "selector1", "bits": 2048, "확인": "DNS 실측" },
+    { "domain": "yahoo.com", "selector": "s2048", "bits": 2048, "확인": "DNS 실측" },
+    { "domain": "protonmail.com", "selector": "protonmail3", "bits": 2048, "확인": "DNS 실측" }
+  ],
+  "제외": [
+    { "domain": "kakao.com", "selector": "default", "bits": 1024, "사유": "1024비트" },
+    { "domain": "assembly.go.kr", "selector": "default", "bits": 1024, "사유": "1024비트" },
+    { "domain": "snu.ac.kr", "selector": "google", "bits": 1024, "사유": "1024비트" },
+    { "domain": "yahoo.com", "selector": "s1024", "bits": 1024, "사유": "1024비트. 같은 도메인의 s2048 을 쓴다" }
+  ],
+  "미해결": [
+    {
+      "domain": "gmail.com",
+      "사유": "활성 셀렉터를 찾지 못했다. 날짜형 48개(2023-01~2026-12 각 월 1일)를 훑었으나 20230601 하나만 나왔고 그마저 폐기 상태다.",
+      "필요한 것": "지메일에서 보낸 메일의 DKIM-Signature 헤더 s= 값"
+    },
+    {
+      "domain": "naver.com",
+      "사유": "흔한 셀렉터 60여 개로 찾지 못했다.",
+      "필요한 것": "네이버 메일에서 보낸 메일의 s= 값"
+    },
+    {
+      "domain": "daum.net",
+      "사유": "흔한 셀렉터 60여 개로 찾지 못했다.",
+      "필요한 것": "다음 메일에서 보낸 메일의 s= 값"
+    },
+    {
+      "domain": "nate.com",
+      "사유": "흔한 셀렉터 60여 개로 찾지 못했다.",
+      "필요한 것": "네이트 메일에서 보낸 메일의 s= 값"
+    }
+  ]
+}
