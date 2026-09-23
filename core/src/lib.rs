@@ -33,7 +33,7 @@ pub use info::{core_info, CoreInfo, SPEC_REVISION};
 pub use merkle::{merkle_apply, merkle_proof, merkle_root, opinion_leaf, policy_leaf, MerkleStep};
 pub use policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
 pub use signing::{
-    check_opinion, check_policy, opinion_signing_payload, policy_id, policy_signing_payload,
-    SignatureStatus,
+    check_opinion, check_policy, group_payload, opinion_signing_payload, policy_id,
+    policy_signing_payload, SignatureStatus,
 };
 pub use store::CardStore;

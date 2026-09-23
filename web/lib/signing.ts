@@ -16,6 +16,8 @@
 
 const POLICY_DOMAIN = "civicagora/policy/v1";
 const OPINION_DOMAIN = "civicagora/opinion/v1";
+/** 익명 회원 명부 루트 (VS-C3a). 서명용이 아니라 앵커링용이다. */
+const GROUP_DOMAIN = "civicagora/group/v1";
 
 export type SignablePolicy = {
   author_did: string;
@@ -82,6 +84,16 @@ export function opinionPayload(card: SignableOpinion): Uint8Array {
     card.evidence_url,
     card.actionable_solution,
   ]);
+}
+
+/**
+ * 명부 루트의 앵커 대상 바이트 (VS-C3a).
+ *
+ * 명부가 그때 어떤 모습이었는지를 앵커에 남겨야, 운영자가 나중에 가짜 회원을
+ * 끼워 넣은 것이 드러난다. 코어의 group_payload 와 같아야 한다.
+ */
+export function groupPayload(root: string): Uint8Array {
+  return encode(GROUP_DOMAIN, [root]);
 }
 
 export function toHex(bytes: Uint8Array): string {

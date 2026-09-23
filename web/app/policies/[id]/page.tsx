@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { migrate, sql } from "@/lib/db";
 import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance } from "@/lib/types";
 import AddOpinion from "./AddOpinion";
+import Endorse from "./Endorse";
+import { countFor } from "@/lib/anon";
+import { hashScopeServer } from "@/lib/scope";
 import SignatureBadge from "@/components/SignatureBadge";
 import AnchorNotice from "@/components/AnchorNotice";
 import { proofFor } from "@/lib/anchor";
@@ -23,6 +26,8 @@ async function load(id: string) {
     opinions: opinions as unknown as DebateCard[],
     // 앵커 증명. 아직 배치에 들어가지 않았으면 null 이다.
     anchor: await proofFor("policy", id),
+    // 익명 지지 수 (VS-C3a). 누가 눌렀는지는 어디에도 없다.
+    endorsements: await countFor(hashScopeServer(id)),
   };
 }
 
@@ -69,7 +74,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions, anchor } = data;
+  const { policy, opinions, anchor, endorsements } = data;
 
   return (
     <>
@@ -109,6 +114,8 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
 
         <AnchorNotice proof={anchor} />
       </div>
+
+      <Endorse policyId={policy.id} initial={endorsements} />
 
       {/* 3열. 좌우 폭이 같아야 한다 — 어느 쪽도 시각적으로 우대하지 않는다.
           가운데 대안 열은 브리징 알고리즘의 자리이며, 합의 배너는 VS-F5에서 붙는다. */}

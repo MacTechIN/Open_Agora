@@ -14,15 +14,21 @@
     "check:components": "node scripts/check-nested-components.mjs",
     "check:writegate": "node scripts/check-write-gate.mjs",
     "check:imports": "node scripts/check-client-imports.mjs",
-    "check": "npm run check:contracts && npm run check:signing && npm run check:anchor && npm run check:components && npm run check:writegate && npm run check:imports && npm run typecheck",
+    "check": "npm run check:contracts && npm run check:signing && npm run check:anchor && npm run check:artifacts && npm run check:components && npm run check:writegate && npm run check:imports && npm run typecheck",
     "check:signing": "node --experimental-strip-types scripts/check-signing.mjs",
     "e2e:signing": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-signing.mjs",
     "check:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-anchor.mjs",
     "verify:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/verify-anchor.mjs",
     "e2e:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-anchor.mjs",
-    "e2e:devices": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-devices.mjs"
+    "e2e:devices": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-devices.mjs",
+    "e2e:anon": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-anon.mjs",
+    "check:artifacts": "python3 ../scripts/check-artifacts.py"
   },
   "dependencies": {
+    "@scure/bip39": "^1.5.4",
+    "@semaphore-protocol/group": "^4.14.3",
+    "@semaphore-protocol/identity": "^4.14.3",
+    "@semaphore-protocol/proof": "^4.14.3",
     "next": "^15.5.25",
     "postgres": "3.4.5",
     "react": "19.0.0",

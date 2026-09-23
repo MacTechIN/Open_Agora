@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, ConfigError, hashEmail, migrateAuth, verifyAndRegister } from "@/lib/auth";
+import {
+  AuthError, ConfigError, claimAnonSlot, hashEmail, migrateAuth, verifyAndRegister,
+} from "@/lib/auth";
+import { commitments, join, migrateAnon } from "@/lib/anon";
 
 export const dynamic = "force-dynamic";
 
 /** 코드를 확인하고 시민으로 등록한다. */
 export async function POST(request: NextRequest) {
   try {
-    const { email, code, did } = await request.json();
+    const { email, code, did, commitment } = await request.json();
     const address = String(email ?? "").trim();
     const identity = String(did ?? "").trim();
 
@@ -18,11 +21,27 @@ export async function POST(request: NextRequest) {
     }
 
     await migrateAuth();
-    const result = await verifyAndRegister(hashEmail(address), String(code), identity);
+    const emailHash = hashEmail(address);
+    const result = await verifyAndRegister(emailHash, String(code), identity);
+
+    // 익명 참여 자격 (VS-C3a). 복구 문구에서 만든 커밋먼트를 그룹에 넣는다.
+    // 옛 클라이언트는 보내지 않으므로 없으면 건너뛴다.
+    let anon: { joined: boolean; reason?: string } | undefined;
+    if (typeof commitment === "string" && commitment.length > 0) {
+      await migrateAnon();
+      const already = (await commitments()).includes(commitment);
+      const slot = await claimAnonSlot(emailHash, already);
+      if (slot.allowed) {
+        await join(commitment);
+        anon = { joined: true };
+      } else {
+        anon = { joined: false, reason: slot.reason };
+      }
+    }
 
     // 처음 가입인지 기기를 더한 것인지 알려준다. 같은 문구를 쓰면 이미
     // 가입한 사람이 "또 가입됐나?" 하고 헷갈린다. 이메일 자체는 담지 않는다.
-    return NextResponse.json({ registered: true, ...result });
+    return NextResponse.json({ registered: true, ...result, anon });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

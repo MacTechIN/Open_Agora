@@ -45,6 +45,12 @@ const POLICY_DOMAIN: &str = "civicagora/policy/v1";
 /// 의견 서명의 도메인.
 const OPINION_DOMAIN: &str = "civicagora/opinion/v1";
 
+/// 익명 회원 명부 루트의 도메인 (VS-C3a).
+///
+/// 서명용이 아니라 앵커링용입니다. 명부가 그때 어떤 모습이었는지를 앵커에
+/// 남겨야, 운영자가 나중에 가짜 회원을 끼워 넣은 것이 드러납니다.
+const GROUP_DOMAIN: &str = "civicagora/group/v1";
+
 /// 서명 상태.
 ///
 /// "없음"과 "틀림"을 구분한다. 서명 이전에 올라온 글은 없는 것이고, 그것은
@@ -137,6 +143,11 @@ pub fn opinion_signing_payload(
 ) -> Result<Vec<u8>, crate::card::CardError> {
     let finalized = card.finalize(&policy_id, &author_did, created_at, None)?;
     Ok(opinion_payload(&finalized))
+}
+
+/// 익명 회원 명부 루트의 앵커 대상 바이트.
+pub fn group_payload(root: String) -> Vec<u8> {
+    encode(GROUP_DOMAIN, &[&root])
 }
 
 /// 주제 식별자.
@@ -386,6 +397,13 @@ mod vectors {
     #[derive(Deserialize)]
     struct Doc {
         cases: Vec<Case>,
+        group: GroupCase,
+    }
+
+    #[derive(Deserialize)]
+    struct GroupCase {
+        root: String,
+        payload_hex: String,
     }
 
     #[derive(Deserialize)]
@@ -404,6 +422,15 @@ mod vectors {
 
     fn text(value: &serde_json::Value, key: &str) -> String {
         value[key].as_str().unwrap_or_default().to_string()
+    }
+
+    #[test]
+    fn 명부_루트_페이로드가_벡터와_같다() {
+        let doc: Doc = serde_json::from_str(VECTORS).expect("벡터 파일");
+        assert_eq!(
+            to_hex(&group_payload(doc.group.root.clone())),
+            doc.group.payload_hex
+        );
     }
 
     #[test]

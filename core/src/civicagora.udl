@@ -71,6 +71,10 @@ namespace civicagora {
     [Throws=CardError]
     string policy_id(DraftPolicy policy, string author_did, i64 created_at);
 
+    // 익명 회원 명부 루트의 앵커 대상 바이트 (VS-C3a). 명부가 그때 어떤
+    // 모습이었는지를 앵커에 남겨야, 나중에 가짜 회원을 끼워 넣은 것이 드러난다.
+    bytes group_payload(string root);
+
     // 받은 글의 서명을 확인한다. 오류를 던지지 않는 이유는 "서명 없음"과
     // "서명 틀림"이 둘 다 정상적인 결과이기 때문이다.
     SignatureStatus check_policy(Policy policy);

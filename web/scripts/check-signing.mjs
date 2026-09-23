@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { policyPayload, opinionPayload, toHex, contentId } = await import("../lib/signing.ts");
+const { policyPayload, opinionPayload, groupPayload, toHex, contentId } = await import("../lib/signing.ts");
 const { checkSignature } = await import("../lib/verify.ts");
 
 const doc = JSON.parse(readFileSync(join(here, "../lib/generated/signing-vectors.json"), "utf8"));
@@ -66,6 +66,13 @@ for (const testCase of doc.cases) {
     if (after !== "invalid") { bad(testCase.name, `내용을 바꿨는데 ${after}`); continue; }
   }
   ok(testCase.name, testCase.signature_hex ? "바이트·서명 일치" : "바이트 일치");
+}
+
+// 명부 루트 페이로드 (VS-C3a). 앵커링에 쓰므로 코어와 같아야 한다.
+if (doc.group) {
+  const actual = toHex(groupPayload(doc.group.root));
+  if (actual !== doc.group.payload_hex) bad("명부 루트 페이로드", "코어와 다릅니다");
+  else ok("명부 루트 페이로드");
 }
 
 // 서명이 없는 것과 틀린 것을 구분하는지.

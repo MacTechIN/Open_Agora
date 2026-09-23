@@ -70,6 +70,8 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
 | `web/scripts/check-client-imports.mjs` | DB 모듈이 브라우저 번들로 끌려가는 것 |
 | `web/scripts/check-signing.mjs` | 서명 대상 바이트·식별자 규칙이 코어와 갈리는 것 |
 | `web/scripts/check-anchor.mjs` | 앵커링 머클 형식이 코어와 갈리는 것 |
+| `scripts/check-artifacts.py` | 고정한 영지식 아티팩트가 바뀌는 것 |
+| `scripts/dkim-watch.py` | 허용 도메인의 DKIM 키 폐기·길이 하락 |
 
 ### 이 저장소에서 지켜야 하는 것
 
@@ -82,6 +84,11 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
   바이트를 만들어야 하고, `contracts/{signing,anchor}-vectors.json` 이 그것을
   양쪽에서 대조합니다. 벡터 파일은 손으로 고치지 않습니다 — 고치면 구현이
   아니라 기댓값을 맞추게 됩니다.
+* **사람 단위로 세야 하는 것은 DID로 세지 않습니다.** 한 사람이 기기를 5대까지
+  등록할 수 있으므로(D21), 반응·투표는 `web/lib/anon.ts` 의 익명 증명과
+  nullifier 로 셉니다. DID로 세면 한 사람이 다섯 몫을 행사합니다.
+* **snarkjs 는 번들하지 않습니다.** `next.config.mjs` 의 `serverExternalPackages`
+  에서 빼야 합니다. 번들에 넣으면 증명 검증 한 번이 300초 걸립니다(정상 11ms).
 * **검증 경로를 숨기지 않습니다.** 앵커 잎 목록과 영수증은 공개합니다.
   확인 방법을 감추면 앵커링은 또 하나의 "믿어 주세요"가 됩니다.
 * **표시 규칙은 네 곳이 같아야 합니다.** 정렬·분류·균형 판정이

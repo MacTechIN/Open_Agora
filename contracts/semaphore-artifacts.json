@@ -1,0 +1,35 @@
+{
+  "note": [
+    "Semaphore 영지식 아티팩트의 고정 해시 (VS-C1 / VS-C3a).",
+    "",
+    "기본 동작은 증명을 만들 때마다 snark-artifacts.pse.dev 에서 내려받는 것이다.",
+    "가입·투표 경로 한복판에 외부 CDN 의존이 들어가고, CDN 이 멈추면 그 기능이",
+    "전면 중단된다. 더 나쁜 것은 CDN 이 바뀐 아티팩트를 주면 우리가 모른다는 점이다.",
+    "",
+    "그래서 저장소에 고정하고 해시를 여기 적는다. scripts/check-artifacts.py 가",
+    "대조한다. → docs/13_VS_C0_FINDINGS.md §7.2",
+    "",
+    "이 아티팩트는 2024-07-13 에 400명 이상이 참여해 끝난 Semaphore V4 세리머니의",
+    "결과물이다. 자체 세리머니를 하지 않는다는 방침의 근거는",
+    "docs/12_ONCHAIN_DEPENDENCIES.md §2 에 있다."
+  ],
+  "project": "semaphore",
+  "artifact_version": "4.13.0",
+  "library_version": "4.14.3",
+  "tree_depth": 16,
+  "max_members": 65536,
+  "source": "https://snark-artifacts.pse.dev/semaphore/4.13.0/",
+  "downloaded_on": "2026-09-23",
+  "files": [
+    {
+      "file": "semaphore-16.wasm",
+      "sha256": "06df31461d17db86897fc234f0e6e5f5e2f6add1b8c821b5c6ae75030b3e0d7c",
+      "bytes": 1843806
+    },
+    {
+      "file": "semaphore-16.zkey",
+      "sha256": "948763c7315a337b7722c0344a28af4be66fbbc618474d6dbe9036e799d1a3b5",
+      "bytes": 3408199
+    }
+  ]
+}

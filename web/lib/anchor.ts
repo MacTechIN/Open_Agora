@@ -32,9 +32,10 @@
  * 없습니다. 앵커링은 삭제를 **막지** 않고 **드러냅니다** — 그것도 사본을 가진
  * 사람이 있을 때만입니다. 진짜 해결은 P2P(Stack B)입니다.
  */
-import { requireDb } from "./db";
+import { requireDb } from "./db.ts";
 import { leafHash, merkleProof, merkleRoot, toHex, type MerkleStep } from "./merkle.ts";
-import { opinionPayload, policyPayload } from "./signing.ts";
+import { groupPayload, opinionPayload, policyPayload } from "./signing.ts";
+import { currentRoot, migrateAnon } from "./anon.ts";
 
 /**
  * 표준 `.ots` 파일 머리말.
@@ -102,7 +103,7 @@ export async function migrateAnchor() {
   await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_anchor_item ON anchor_leaves (kind, item_id)`;
 }
 
-type Candidate = { kind: "policy" | "opinion"; id: string; leaf: Uint8Array; created_at: number };
+type Candidate = { kind: "policy" | "opinion" | "group"; id: string; leaf: Uint8Array; created_at: number };
 
 /**
  * 아직 앵커에 들어가지 않은 글을 모읍니다.
@@ -167,6 +168,24 @@ async function pending(): Promise<Candidate[]> {
       })),
     });
   }
+  // 익명 회원 명부의 루트도 함께 묶는다 (VS-C3a). 명부가 그때 어떤 모습이었는지
+  // 남지 않으면, 운영자가 나중에 가짜 회원을 끼워 넣어도 드러나지 않는다.
+  // 루트가 지난번과 같으면 (kind, item_id) 유일 색인이 걸러 준다.
+  await migrateAnon();
+  const group = await currentRoot();
+  if (group) {
+    const [seen] = await db`
+      SELECT 1 FROM anchor_leaves WHERE kind = 'group' AND item_id = ${group.root}`;
+    if (!seen) {
+      out.push({
+        kind: "group",
+        id: group.root,
+        created_at: Date.now(),
+        leaf: await leafHash(groupPayload(group.root)),
+      });
+    }
+  }
+
   out.sort((a, b) => a.created_at - b.created_at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }

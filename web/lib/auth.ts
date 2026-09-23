@@ -93,6 +93,9 @@ export async function migrateAuth() {
   // 등록한 기기 수. 어떤 DID 인지는 담지 않으므로 두 표는 여전히
   // 연결되지 않는다 — 이 숫자로는 누가 무엇을 썼는지 알 수 없다.
   await db`ALTER TABLE consumed_emails ADD COLUMN IF NOT EXISTS device_count INT NOT NULL DEFAULT 1`;
+  // 익명 회원권을 이미 받아 갔는가 (VS-C3a). 어떤 커밋먼트인지는 담지 않는다 —
+  // 담는 순간 그 사람의 표를 이메일에 이어 붙일 수 있게 된다.
+  await db`ALTER TABLE consumed_emails ADD COLUMN IF NOT EXISTS anon_joined BOOLEAN NOT NULL DEFAULT FALSE`;
   await db`
     CREATE TABLE IF NOT EXISTS members (
       did           TEXT PRIMARY KEY,
@@ -265,4 +268,39 @@ async function deviceCount(emailHash: string): Promise<number> {
   const db = requireDb();
   const [row] = await db`SELECT device_count FROM consumed_emails WHERE email_hash = ${emailHash}`;
   return row ? Number(row.device_count) : 0;
+}
+
+
+/**
+ * 익명 회원권 자리를 쓴다 (VS-C3a).
+ *
+ * 한 이메일에 하나입니다. 기기는 여럿이어도 사람은 하나이기 때문입니다.
+ *
+ * **어떤 커밋먼트를 받았는지는 저장하지 않습니다.** 대신 "이미 받아 갔는가"만
+ * 표시합니다. 그래서 같은 사람이 다른 기기에서 같은 복구 문구로 다시 오면
+ * 커밋먼트가 이미 그룹에 있다는 사실로 판단합니다 — 그것은 어차피 공개
+ * 정보이므로 새로 새는 것이 없습니다.
+ *
+ * @param alreadyInGroup 제출한 커밋먼트가 이미 그룹에 있는가
+ * @returns 그룹에 넣어도 되는가
+ */
+export async function claimAnonSlot(
+  emailHash: string,
+  alreadyInGroup: boolean
+): Promise<{ allowed: boolean; reason?: string }> {
+  const db = requireDb();
+  const [row] = await db`SELECT anon_joined FROM consumed_emails WHERE email_hash = ${emailHash}`;
+
+  // 같은 문구로 다시 온 경우. 자리를 새로 쓰지 않는다.
+  if (alreadyInGroup) return { allowed: true };
+
+  if (row?.anon_joined) {
+    return {
+      allowed: false,
+      reason: "이 이메일은 이미 익명 참여 자격을 받았습니다. 처음 받으신 복구 문구를 입력해 주세요.",
+    };
+  }
+
+  await db`UPDATE consumed_emails SET anon_joined = TRUE WHERE email_hash = ${emailHash}`;
+  return { allowed: true };
 }
