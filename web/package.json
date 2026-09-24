@@ -24,7 +24,8 @@
     "e2e:anon": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-anon.mjs",
     "check:artifacts": "python3 ../scripts/check-artifacts.py",
     "check:privacy": "node scripts/check-no-reactor-list.mjs",
-    "e2e:reactions": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-reactions.mjs"
+    "e2e:reactions": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-reactions.mjs",
+    "e2e:bridging": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-bridging.mjs"
   },
   "dependencies": {
     "@scure/bip39": "^1.5.4",

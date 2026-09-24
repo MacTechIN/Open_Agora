@@ -37,6 +37,10 @@ cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings
 ./scripts/check-binding-parity.sh          # G-PARITY
 ./scripts/check-immutability.sh            # G-IMMUT
 
+# 브리징 배치 (VS-F1·F3)
+python3 -m pytest services/bridging/test_bridging.py -q   # ★★ 몰표 무력화
+cd services/bridging && BRIDGING_SECRET=... python3 batch.py --dry-run
+
 # 웹
 cd web && npm ci && npm run dev
 npm run check                              # 계약·중첩·쓰기게이트·import 4종

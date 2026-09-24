@@ -49,6 +49,27 @@ export async function migrateReactions() {
     )`;
   // 카드별 집계를 자주 읽는다.
   await db`CREATE INDEX IF NOT EXISTS idx_reactions_card ON reactions (card_id)`;
+
+  // 브리징 점수 (VS-F3). 카드 단위 값만 담는다 — 사용자 잠재 성향 f_u 는
+  // 저장하지 않는다(INV-2). 그것은 개인의 정치 성향이다.
+  await db`
+    CREATE TABLE IF NOT EXISTS card_scores (
+      card_id       TEXT PRIMARY KEY,
+      score         DOUBLE PRECISION NOT NULL,
+      bias          DOUBLE PRECISION NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      updated_at    BIGINT NOT NULL
+    )`;
+  // 배치 이력. 어느 데이터·어느 모델·어느 시드가 낸 값인지 남긴다 (G-DETERM).
+  await db`
+    CREATE TABLE IF NOT EXISTS bridging_runs (
+      id            BIGSERIAL PRIMARY KEY,
+      snapshot_hash TEXT NOT NULL,
+      model_version INT NOT NULL,
+      seed          BIGINT NOT NULL,
+      card_count    INT NOT NULL,
+      created_at    BIGINT NOT NULL
+    )`;
 }
 
 export type ReactResult =
@@ -145,4 +166,82 @@ export async function countsFor(cardIds: string[]): Promise<Record<string, Count
     if (kind in EMPTY) out[String(row.card_id)][kind] = Number(row.n);
   }
   return out;
+}
+
+/**
+ * 브리징 배치용 스냅샷 (VS-F3).
+ *
+ * **필명을 내보내지 않습니다.** 모델에 필요한 것은 "같은 사람인가"뿐이므로
+ * 스냅샷 안에서만 통하는 **번호**로 바꿔 줍니다. 번호는 스냅샷마다 다시
+ * 매겨지므로 두 스냅샷을 겹쳐도 같은 사람을 찾을 수 없습니다.
+ *
+ * 이렇게 하면 배치가 데이터베이스 자격증명을 갖지 않아도 되고, 스냅샷이
+ * 새더라도 남는 것은 **익명 이분 그래프**뿐입니다.
+ */
+export async function snapshotForBridging(): Promise<{
+  taken_at: number;
+  user_count: number;
+  reactions: Array<[number, string, number]>;
+}> {
+  await migrateReactions();
+  const db = requireDb();
+  const rows = await db`
+    SELECT pseudonym, card_id, signal FROM reactions ORDER BY card_id, pseudonym`;
+
+  const index = new Map<string, number>();
+  const reactions: Array<[number, string, number]> = [];
+  for (const row of rows) {
+    const who = String(row.pseudonym);
+    if (!index.has(who)) index.set(who, index.size);
+    reactions.push([index.get(who)!, String(row.card_id), Number(row.signal)]);
+  }
+  return { taken_at: Date.now(), user_count: index.size, reactions };
+}
+
+export type CardScore = { score: number; bias: number };
+
+/** 배치가 낸 점수를 저장한다. 이전 판을 대체한다 — 점수는 기록이 아니라 현재 값이다. */
+export async function storeScores(
+  run: { model_version: number; seed: number; snapshot_hash: string },
+  scores: Record<string, CardScore>
+): Promise<number> {
+  await migrateReactions();
+  const db = requireDb();
+  const now = Date.now();
+
+  await db`
+    INSERT INTO bridging_runs (snapshot_hash, model_version, seed, card_count, created_at)
+    VALUES (${run.snapshot_hash}, ${run.model_version}, ${run.seed},
+            ${Object.keys(scores).length}, ${now})`;
+
+  const entries = Object.entries(scores);
+  if (entries.length === 0) return 0;
+
+  await db`
+    INSERT INTO card_scores ${db(
+      entries.map(([card, value]) => ({
+        card_id: card,
+        score: value.score,
+        bias: value.bias,
+        snapshot_hash: run.snapshot_hash,
+        updated_at: now,
+      })),
+      "card_id", "score", "bias", "snapshot_hash", "updated_at"
+    )}
+    ON CONFLICT (card_id) DO UPDATE
+      SET score = EXCLUDED.score, bias = EXCLUDED.bias,
+          snapshot_hash = EXCLUDED.snapshot_hash, updated_at = EXCLUDED.updated_at`;
+  return entries.length;
+}
+
+/** 카드별 브리징 점수. 미산출 카드는 들어 있지 않다. */
+export async function scoresFor(cardIds: string[]): Promise<Record<string, CardScore>> {
+  await migrateReactions();
+  if (cardIds.length === 0) return {};
+  const db = requireDb();
+  const rows = await db`
+    SELECT card_id, score, bias FROM card_scores WHERE card_id = ANY(${cardIds})`;
+  return Object.fromEntries(
+    rows.map((r) => [String(r.card_id), { score: Number(r.score), bias: Number(r.bias) }])
+  );
 }

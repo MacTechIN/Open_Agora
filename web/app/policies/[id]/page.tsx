@@ -5,7 +5,7 @@ import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance
 import AddOpinion from "./AddOpinion";
 import Endorse from "./Endorse";
 import Reactions from "@/components/Reactions";
-import { countsFor } from "@/lib/reactions";
+import { countsFor, scoresFor, type CardScore } from "@/lib/reactions";
 import { countFor } from "@/lib/anon";
 import { hashScopeServer } from "@/lib/scope";
 import SignatureBadge from "@/components/SignatureBadge";
@@ -32,15 +32,34 @@ async function load(id: string) {
     endorsements: await countFor(hashScopeServer(id)),
     // 반응 집계 (VS-D2). **집계만** 받는다 — 필명은 오지 않는다.
     reactions: await countsFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
+    // 브리징 점수 (VS-F3). 미산출 카드는 들어 있지 않다.
+    scores: await scoresFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
   };
 }
 
-function Column({ stance, cards, reactions }: {
+/**
+ * 한 열의 카드 순서 (VS-F3).
+ *
+ * 브리징 점수가 있는 카드가 먼저, 점수 높은 순입니다. 점수가 없는 카드는
+ * 그 아래에 최신순으로 붙습니다 — **신규 카드의 노출 기회를 보장하는
+ * 구간**입니다(`docs/03_ALGORITHMS_AI.md` §1.4). 이 구간이 없으면 반응이
+ * 쌓이기 전의 카드는 영원히 보이지 않고, 반응이 쌓일 일도 없습니다.
+ */
+function order(cards: DebateCard[], scores: Record<string, CardScore>): DebateCard[] {
+  const scored = cards.filter((c) => c.id in scores)
+    .sort((a, b) => scores[b.id].score - scores[a.id].score);
+  const fresh = cards.filter((c) => !(c.id in scores))
+    .sort((a, b) => b.created_at - a.created_at);
+  return [...scored, ...fresh];
+}
+
+function Column({ stance, cards, reactions, scores }: {
   stance: Stance;
   cards: DebateCard[];
   reactions: Record<string, Record<string, number>>;
+  scores: Record<string, CardScore>;
 }) {
-  const mine = cards.filter((c) => c.stance === stance);
+  const mine = order(cards.filter((c) => c.stance === stance), scores);
   return (
     <div>
       <h3 className={stance}>
@@ -49,6 +68,17 @@ function Column({ stance, cards, reactions }: {
       {mine.length === 0 && <div className="muted" style={{ textAlign: "center", padding: 12 }}>아직 없습니다</div>}
       {mine.map((c) => (
         <div key={c.id} className="card" style={{ padding: 14 }}>
+          {c.id in scores ? (
+            <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}
+                 title="양 진영 모두에게 인정받을수록 높아집니다. 한쪽의 몰표로는 오르지 않습니다.">
+              브리징 {scores[c.id].score.toFixed(2)}
+            </div>
+          ) : (
+            <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}
+                 title="반응이 20개 이상 모이면 브리징 점수가 매겨집니다.">
+              평가 수집 중
+            </div>
+          )}
           <div className="section">
             <span className="label">논점</span>
             {c.problem_definition}
@@ -85,7 +115,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions, anchor, endorsements, reactions } = data;
+  const { policy, opinions, anchor, endorsements, reactions, scores } = data;
 
   return (
     <>
@@ -132,9 +162,9 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
           가운데 대안 열은 브리징 알고리즘의 자리이며, 합의 배너는 VS-F5에서 붙는다. */}
       <h2 style={{ fontSize: 18, marginTop: 28 }}>의견 {opinions.length}건</h2>
       <div className="columns">
-        <Column stance="SUPPORT" cards={opinions} reactions={reactions} />
-        <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} />
-        <Column stance="OPPOSE" cards={opinions} reactions={reactions} />
+        <Column stance="SUPPORT" cards={opinions} reactions={reactions} scores={scores} />
+        <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} scores={scores} />
+        <Column stance="OPPOSE" cards={opinions} reactions={reactions} scores={scores} />
       </div>
 
       <AddOpinion policyId={policy.id} question={policy.core_question} />

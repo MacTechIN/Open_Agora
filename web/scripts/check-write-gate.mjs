@@ -34,6 +34,7 @@ const EXEMPT = ["app/api/auth/"];
  */
 const OPERATOR = {
   "app/api/anchor/build/route.ts": "ANCHOR_SECRET",
+  "app/api/bridging/scores/route.ts": "BRIDGING_SECRET",
 };
 
 let failed = 0;
