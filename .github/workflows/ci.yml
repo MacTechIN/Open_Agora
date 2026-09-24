@@ -110,6 +110,11 @@ jobs:
       - name: 클라이언트 import 검사
         working-directory: web
         run: npm run check:imports
+      # 반응자 목록은 존재해서는 안 된다(G-PRIV, INV-3). 집계는 공개하고
+      # 개인은 감추는 구조라 한 줄만 더해도 그대로 목록이 된다.
+      - name: 반응자 목록 검사
+        working-directory: web
+        run: npm run check:privacy
       - name: 빌드
         working-directory: web
         run: npx next build

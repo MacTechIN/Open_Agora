@@ -4,6 +4,8 @@ import { migrate, sql } from "@/lib/db";
 import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance } from "@/lib/types";
 import AddOpinion from "./AddOpinion";
 import Endorse from "./Endorse";
+import Reactions from "@/components/Reactions";
+import { countsFor } from "@/lib/reactions";
 import { countFor } from "@/lib/anon";
 import { hashScopeServer } from "@/lib/scope";
 import SignatureBadge from "@/components/SignatureBadge";
@@ -28,10 +30,16 @@ async function load(id: string) {
     anchor: await proofFor("policy", id),
     // 익명 지지 수 (VS-C3a). 누가 눌렀는지는 어디에도 없다.
     endorsements: await countFor(hashScopeServer(id)),
+    // 반응 집계 (VS-D2). **집계만** 받는다 — 필명은 오지 않는다.
+    reactions: await countsFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
   };
 }
 
-function Column({ stance, cards }: { stance: Stance; cards: DebateCard[] }) {
+function Column({ stance, cards, reactions }: {
+  stance: Stance;
+  cards: DebateCard[];
+  reactions: Record<string, Record<string, number>>;
+}) {
   const mine = cards.filter((c) => c.stance === stance);
   return (
     <div>
@@ -57,6 +65,9 @@ function Column({ stance, cards }: { stance: Stance; cards: DebateCard[] }) {
             <span className="label">제안</span>
             {c.actionable_solution}
           </div>
+          <Reactions cardId={c.id} authorDid={c.author_did}
+                     counts={reactions[c.id] ?? {}} />
+
           <div className="muted"
                style={{ marginTop: 10, fontSize: 12, display: "flex",
                         justifyContent: "space-between", gap: 8 }}>
@@ -74,7 +85,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions, anchor, endorsements } = data;
+  const { policy, opinions, anchor, endorsements, reactions } = data;
 
   return (
     <>
@@ -121,9 +132,9 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
           가운데 대안 열은 브리징 알고리즘의 자리이며, 합의 배너는 VS-F5에서 붙는다. */}
       <h2 style={{ fontSize: 18, marginTop: 28 }}>의견 {opinions.length}건</h2>
       <div className="columns">
-        <Column stance="SUPPORT" cards={opinions} />
-        <Column stance="ALTERNATIVE" cards={opinions} />
-        <Column stance="OPPOSE" cards={opinions} />
+        <Column stance="SUPPORT" cards={opinions} reactions={reactions} />
+        <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} />
+        <Column stance="OPPOSE" cards={opinions} reactions={reactions} />
       </div>
 
       <AddOpinion policyId={policy.id} question={policy.core_question} />

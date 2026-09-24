@@ -1,6 +1,6 @@
 "use client";
 
-import { hashScopeServer } from "./scope.ts";
+import { PSEUDONYM_SCOPE, hashScopeServer, reactionMessage, type ReactionKind } from "./scope.ts";
 
 /**
  * 익명 회원권 — 브라우저 쪽 (VS-C3a).
@@ -117,3 +117,45 @@ export async function proveMembership(phrase: string, scope: string): Promise<An
 }
 
 
+
+/**
+ * 반응 증명을 만든다 (VS-D2).
+ *
+ * 지지(VS-C3a)와 달리 **고정 scope** 를 씁니다. 그래야 nullifier 가 사람마다
+ * 하나로 고정되어 **필명**이 되고, 브리징 행렬의 행이 생깁니다. 대신 한
+ * 사람의 반응들은 서로 묶입니다 — 그것이 브리징의 전제입니다.
+ *
+ * 묶이는 것은 필명끼리이고, 필명은 이메일·DID 어느 쪽과도 이어지지 않습니다.
+ */
+export async function proveReaction(
+  phrase: string,
+  cardId: string,
+  kind: ReactionKind,
+  at: number
+): Promise<AnonProof> {
+  const [{ Identity }, { Group }, { generateProof }] = await Promise.all([
+    import("@semaphore-protocol/identity"),
+    import("@semaphore-protocol/group"),
+    import("@semaphore-protocol/proof"),
+  ]);
+
+  const response = await fetch("/api/anon/group");
+  if (!response.ok) throw new Error("회원 명부를 받지 못했습니다");
+  const { commitments } = (await response.json()) as { commitments: string[] };
+
+  const identity = new Identity(normalize(phrase));
+  if (!commitments.includes(identity.commitment.toString())) {
+    throw new Error("이 복구 문구는 아직 회원으로 등록되지 않았습니다.");
+  }
+
+  const group = new Group(commitments.map(BigInt));
+  const proof = await generateProof(
+    identity,
+    group,
+    BigInt(reactionMessage(cardId, kind, at)),
+    BigInt(PSEUDONYM_SCOPE),
+    TREE_DEPTH,
+    ARTIFACTS
+  );
+  return proof as unknown as AnonProof;
+}
