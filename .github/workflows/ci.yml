@@ -95,6 +95,12 @@ jobs:
       # 통과해도 그것이 무엇을 뜻하는지 우리가 알 수 없다.
       - name: 영지식 아티팩트 대조
         run: python3 scripts/check-artifacts.py
+      # VS-F2. 이 테스트가 실패하면 이 플랫폼은 그냥 또 하나의 인기투표
+      # 사이트다. 랭킹·반응·평판을 건드리는 모든 변경이 여기를 지나야 한다.
+      - name: 몰표 무력화 회귀 테스트 (VS-F2)
+        run: |
+          python3 -m pip install --quiet -r services/bridging/requirements.txt
+          python3 -m pytest services/bridging/test_bridging.py -q
       # 허용 도메인의 DKIM 키가 폐기되거나 짧아지면 가입의 신뢰 뿌리가 무너진다.
       # DNS 를 보므로 일시적 실패가 있을 수 있어 경고로 둔다.
       - name: DKIM 허용 목록 감시
