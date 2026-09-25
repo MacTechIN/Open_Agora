@@ -23,6 +23,7 @@ mod identity;
 mod info;
 mod merkle;
 mod policy;
+mod reply;
 mod screening;
 mod signing;
 mod store;
@@ -33,9 +34,10 @@ pub use identity::{did_from_public_key, public_key_from_did, verify_signature, I
 pub use info::{core_info, CoreInfo, SPEC_REVISION};
 pub use merkle::{merkle_apply, merkle_proof, merkle_root, opinion_leaf, policy_leaf, MerkleStep};
 pub use policy::{DraftPolicy, Policy, PolicyCategory, PolicySummary};
+pub use reply::{DraftReply, Reply, MAX_BODY};
 pub use screening::{screen, Screening, BANNER_THRESHOLD, STEP2_THRESHOLD};
 pub use signing::{
-    check_opinion, check_policy, group_payload, opinion_signing_payload, policy_id,
-    policy_signing_payload, SignatureStatus,
+    check_opinion, check_policy, check_reply, group_payload, opinion_signing_payload, policy_id,
+    policy_signing_payload, reply_signing_payload, SignatureStatus,
 };
 pub use store::CardStore;

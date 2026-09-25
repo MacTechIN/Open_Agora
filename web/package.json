@@ -27,7 +27,8 @@
     "e2e:reactions": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-reactions.mjs",
     "e2e:bridging": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-bridging.mjs",
     "check:screening": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-screening.mjs",
-    "check:draft": "node scripts/check-no-draft-leak.mjs"
+    "check:draft": "node scripts/check-no-draft-leak.mjs",
+    "e2e:replies": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-replies.mjs"
   },
   "dependencies": {
     "@scure/bip39": "^1.5.4",

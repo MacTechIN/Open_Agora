@@ -103,3 +103,13 @@ export function validatePolicy(input: Record<string, unknown>): CleanPolicy {
   };
 }
 
+
+/**
+ * 댓글 검증 (VS-D3).
+ *
+ * 카드와 달리 3단 구조를 강제하지 않고 자유 서술 500자다
+ * (`docs/00_PRODUCT_SPEC.md` §4). 한도는 코어와 같은 파일에서 온다.
+ */
+export function validateReply(input: Record<string, unknown>): { body: string } {
+  return { body: field("댓글", String(input.body ?? ""), LIMITS.reply.body) };
+}

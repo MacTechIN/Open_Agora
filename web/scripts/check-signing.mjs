@@ -16,7 +16,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { policyPayload, opinionPayload, groupPayload, toHex, contentId } = await import("../lib/signing.ts");
+const { policyPayload, opinionPayload, groupPayload, replyPayload, toHex, contentId } =
+  await import("../lib/signing.ts");
 const { checkSignature } = await import("../lib/verify.ts");
 
 const doc = JSON.parse(readFileSync(join(here, "../lib/generated/signing-vectors.json"), "utf8"));
@@ -73,6 +74,13 @@ if (doc.group) {
   const actual = toHex(groupPayload(doc.group.root));
   if (actual !== doc.group.payload_hex) bad("명부 루트 페이로드", "코어와 다릅니다");
   else ok("명부 루트 페이로드");
+}
+
+// 댓글 페이로드 (VS-D3).
+if (doc.reply) {
+  const actual = toHex(replyPayload(doc.reply));
+  if (actual !== doc.reply.payload_hex) bad("댓글 페이로드", "코어와 다릅니다");
+  else ok("댓글 페이로드");
 }
 
 // 서명이 없는 것과 틀린 것을 구분하는지.

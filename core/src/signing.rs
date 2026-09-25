@@ -45,6 +45,9 @@ const POLICY_DOMAIN: &str = "civicagora/policy/v1";
 /// 의견 서명의 도메인.
 const OPINION_DOMAIN: &str = "civicagora/opinion/v1";
 
+/// 댓글 서명의 도메인 (VS-D3).
+const REPLY_DOMAIN: &str = "civicagora/reply/v1";
+
 /// 익명 회원 명부 루트의 도메인 (VS-C3a).
 ///
 /// 서명용이 아니라 앵커링용입니다. 명부가 그때 어떤 모습이었는지를 앵커에
@@ -118,6 +121,36 @@ pub fn opinion_payload(card: &DebateCard) -> Vec<u8> {
             &card.actionable_solution,
         ],
     )
+}
+
+/// 저장된 댓글의 서명 대상 바이트.
+pub fn reply_payload(reply: &crate::reply::Reply) -> Vec<u8> {
+    encode(
+        REPLY_DOMAIN,
+        &[
+            &reply.card_id,
+            &reply.author_did,
+            &reply.created_at.to_string(),
+            &reply.body,
+        ],
+    )
+}
+
+/// 올리기 전에 서명할 바이트를 만든다 (댓글).
+pub fn reply_signing_payload(
+    card_id: String,
+    reply: crate::reply::DraftReply,
+    author_did: String,
+    created_at: i64,
+) -> Result<Vec<u8>, crate::card::CardError> {
+    let finalized = reply.finalize(&card_id, &author_did, created_at, None)?;
+    Ok(reply_payload(&finalized))
+}
+
+/// 댓글의 서명을 확인한다.
+pub fn check_reply(reply: crate::reply::Reply) -> SignatureStatus {
+    let payload = reply_payload(&reply);
+    check(&reply.author_did, &payload, reply.signature.as_ref())
 }
 
 /// 올리기 전에 서명할 바이트를 만든다.
@@ -398,11 +431,21 @@ mod vectors {
     struct Doc {
         cases: Vec<Case>,
         group: GroupCase,
+        reply: ReplyCase,
     }
 
     #[derive(Deserialize)]
     struct GroupCase {
         root: String,
+        payload_hex: String,
+    }
+
+    #[derive(Deserialize)]
+    struct ReplyCase {
+        card_id: String,
+        author_did: String,
+        created_at: i64,
+        body: String,
         payload_hex: String,
     }
 
@@ -431,6 +474,21 @@ mod vectors {
             to_hex(&group_payload(doc.group.root.clone())),
             doc.group.payload_hex
         );
+    }
+
+    #[test]
+    fn 댓글_페이로드가_벡터와_같다() {
+        let doc: Doc = serde_json::from_str(VECTORS).expect("벡터 파일");
+        let payload = reply_signing_payload(
+            doc.reply.card_id.clone(),
+            crate::reply::DraftReply {
+                body: doc.reply.body.clone(),
+            },
+            doc.reply.author_did.clone(),
+            doc.reply.created_at,
+        )
+        .expect("벡터 입력은 검증을 통과해야 한다");
+        assert_eq!(to_hex(&payload), doc.reply.payload_hex);
     }
 
     #[test]

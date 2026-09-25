@@ -54,6 +54,7 @@ const COMPOSERS = [
   [root, "components/OpinionForm.tsx"],
   [root, "components/CountedField.tsx"],
   [root, "components/ToneNotice.tsx"],
+  [root, "components/ReplyComposer.tsx"],
   [repo, "apps/windows/OpinionForm.cs"],
   [repo, "apps/android/app/src/main/kotlin/org/civicagora/app/OpinionForm.kt"],
   [repo, "apps/ios/CivicAgora/OpinionFormView.swift"],

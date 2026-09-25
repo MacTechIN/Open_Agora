@@ -16,6 +16,9 @@
 
 const POLICY_DOMAIN = "civicagora/policy/v1";
 const OPINION_DOMAIN = "civicagora/opinion/v1";
+/** 댓글 서명 (VS-D3). */
+const REPLY_DOMAIN = "civicagora/reply/v1";
+
 /** 익명 회원 명부 루트 (VS-C3a). 서명용이 아니라 앵커링용이다. */
 const GROUP_DOMAIN = "civicagora/group/v1";
 
@@ -28,6 +31,13 @@ export type SignablePolicy = {
   core_question: string;
   official_source_url: string;
   target_agency?: string | null;
+};
+
+export type SignableReply = {
+  card_id: string;
+  author_did: string;
+  created_at: number;
+  body: string;
 };
 
 export type SignableOpinion = {
@@ -94,6 +104,15 @@ export function opinionPayload(card: SignableOpinion): Uint8Array {
  */
 export function groupPayload(root: string): Uint8Array {
   return encode(GROUP_DOMAIN, [root]);
+}
+
+export function replyPayload(reply: SignableReply): Uint8Array {
+  return encode(REPLY_DOMAIN, [
+    reply.card_id,
+    reply.author_did,
+    String(reply.created_at),
+    reply.body,
+  ]);
 }
 
 export function toHex(bytes: Uint8Array): string {

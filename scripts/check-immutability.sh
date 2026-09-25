@@ -74,6 +74,22 @@ else
     echo "  OK   앱 코드에 삭제 동작 없음"
 fi
 
+# 5) 서버(웹)에도 파괴적 SQL이 없어야 한다.
+#
+#    글의 정본이 코어의 SQLite 가 아니라 서버의 Postgres 로 옮겨 갔는데
+#    게이트는 코어만 보고 있었다. 실제로 지울 수 있는 곳을 보지 않는 게이트는
+#    게이트가 아니다.
+#
+#    대상을 **내용 표**로 좁힌다. 인증코드(verification_codes)는 쓰고 나면
+#    지워야 하고, 그것을 막으면 코드가 영원히 남는다.
+content_sql="$(grep -rniE '(delete[[:space:]]+from|truncate)[[:space:]]+(policies|cards|replies)\b|update[[:space:]]+(policies|cards|replies)[[:space:]]+set' \
+    "$ROOT/web/lib" "$ROOT/web/app" 2>/dev/null || true)"
+if [ -n "$content_sql" ]; then
+    report "서버에 글을 지우거나 고치는 SQL이 있습니다" "$content_sql"
+else
+    echo "  OK   서버에 글 삭제·수정 SQL 없음"
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "G-IMMUT 실패: 삭제 경로가 생겼습니다." >&2
     exit 1

@@ -89,6 +89,12 @@ namespace civicagora {
     // "서명 틀림"이 둘 다 정상적인 결과이기 때문이다.
     SignatureStatus check_policy(Policy policy);
     SignatureStatus check_opinion(DebateCard card);
+    SignatureStatus check_reply(Reply reply);
+
+    // ── VS-D3: 댓글 ───────────────────────────────────────────────
+    [Throws=CardError]
+    bytes reply_signing_payload(string card_id, DraftReply reply,
+                                string author_did, i64 created_at);
 
     // ── VS-F6: 앵커링 ─────────────────────────────────────────────
     //
@@ -258,6 +264,24 @@ dictionary DebateCard {
     string author_did;
     i64 created_at;               // epoch 밀리초
     string? signature;            // 작성자 서명(P1363, 16진). 이전 글은 없다
+};
+
+// 댓글. 카드와 달리 3단 구조를 강제하지 않고 자유 서술 500자다.
+dictionary DraftReply {
+    string body;                  // 최대 500자
+};
+
+// 등록된 댓글.
+//
+// **부모 댓글을 가리키는 자리가 없다.** 한 단계만 허용한다는 규칙을 타입으로
+// 못박는다 — 자리가 있으면 언젠가 채워진다.
+dictionary Reply {
+    string id;
+    string card_id;
+    string body;
+    string author_did;
+    i64 created_at;
+    string? signature;
 };
 
 interface CardStore {

@@ -5,6 +5,8 @@ import { CATEGORY_LABEL, STANCE_LABEL, type DebateCard, type Policy, type Stance
 import AddOpinion from "./AddOpinion";
 import Endorse from "./Endorse";
 import Reactions from "@/components/Reactions";
+import Replies from "./Replies";
+import { repliesFor, type Reply } from "@/lib/replies";
 import { countsFor, scoresFor, type CardScore } from "@/lib/reactions";
 import { countFor } from "@/lib/anon";
 import { hashScopeServer } from "@/lib/scope";
@@ -34,6 +36,8 @@ async function load(id: string) {
     reactions: await countsFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
     // 브리징 점수 (VS-F3). 미산출 카드는 들어 있지 않다.
     scores: await scoresFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
+    // 댓글 (VS-D3). 한 단계만 있다.
+    replies: await repliesFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
   };
 }
 
@@ -53,11 +57,12 @@ function order(cards: DebateCard[], scores: Record<string, CardScore>): DebateCa
   return [...scored, ...fresh];
 }
 
-function Column({ stance, cards, reactions, scores }: {
+function Column({ stance, cards, reactions, scores, replies }: {
   stance: Stance;
   cards: DebateCard[];
   reactions: Record<string, Record<string, number>>;
   scores: Record<string, CardScore>;
+  replies: Record<string, Reply[]>;
 }) {
   const mine = order(cards.filter((c) => c.stance === stance), scores);
   return (
@@ -98,6 +103,8 @@ function Column({ stance, cards, reactions, scores }: {
           <Reactions cardId={c.id} authorDid={c.author_did}
                      counts={reactions[c.id] ?? {}} />
 
+          <Replies cardId={c.id} initial={replies[c.id] ?? []} />
+
           <div className="muted"
                style={{ marginTop: 10, fontSize: 12, display: "flex",
                         justifyContent: "space-between", gap: 8 }}>
@@ -115,7 +122,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions, anchor, endorsements, reactions, scores } = data;
+  const { policy, opinions, anchor, endorsements, reactions, scores, replies } = data;
 
   return (
     <>
@@ -162,9 +169,12 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
           가운데 대안 열은 브리징 알고리즘의 자리이며, 합의 배너는 VS-F5에서 붙는다. */}
       <h2 style={{ fontSize: 18, marginTop: 28 }}>의견 {opinions.length}건</h2>
       <div className="columns">
-        <Column stance="SUPPORT" cards={opinions} reactions={reactions} scores={scores} />
-        <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} scores={scores} />
-        <Column stance="OPPOSE" cards={opinions} reactions={reactions} scores={scores} />
+        <Column stance="SUPPORT" cards={opinions} reactions={reactions} scores={scores}
+                replies={replies} />
+        <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} scores={scores}
+                replies={replies} />
+        <Column stance="OPPOSE" cards={opinions} reactions={reactions} scores={scores}
+                replies={replies} />
       </div>
 
       <AddOpinion policyId={policy.id} question={policy.core_question} />

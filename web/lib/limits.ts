@@ -11,6 +11,7 @@ import raw from "./generated/limits.json";
 export const LIMITS = {
   policy: raw.policy,
   card: raw.card,
+  reply: raw.reply,
   url: raw.url,
 } as const;
 
