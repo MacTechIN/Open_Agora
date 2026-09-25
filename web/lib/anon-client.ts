@@ -159,3 +159,36 @@ export async function proveReaction(
   );
   return proof as unknown as AnonProof;
 }
+
+/**
+ * 본인임을 보이는 증명 (VS-F4).
+ *
+ * 반응과 **같은 고정 scope** 를 씁니다. 그래야 나오는 nullifier 가 반응에
+ * 쓴 필명과 같고, 서버가 "이 필명의 좌표"를 찾아 줄 수 있습니다.
+ * 대상별 scope(지지)로 만들면 다른 필명이 나와 아무것도 찾지 못합니다.
+ *
+ * message 는 고정합니다. 이 증명은 무엇을 주장하는 것이 아니라 **누구인지를
+ * 밝히는 것**이기 때문입니다.
+ */
+export async function provePseudonym(phrase: string): Promise<AnonProof> {
+  const [{ Identity }, { Group }, { generateProof }] = await Promise.all([
+    import("@semaphore-protocol/identity"),
+    import("@semaphore-protocol/group"),
+    import("@semaphore-protocol/proof"),
+  ]);
+
+  const response = await fetch("/api/anon/group");
+  if (!response.ok) throw new Error("회원 명부를 받지 못했습니다");
+  const { commitments } = (await response.json()) as { commitments: string[] };
+
+  const identity = new Identity(normalize(phrase));
+  if (!commitments.includes(identity.commitment.toString())) {
+    throw new Error("이 복구 문구는 아직 회원으로 등록되지 않았습니다.");
+  }
+
+  const group = new Group(commitments.map(BigInt));
+  const proof = await generateProof(
+    identity, group, 1n, BigInt(PSEUDONYM_SCOPE), TREE_DEPTH, ARTIFACTS
+  );
+  return proof as unknown as AnonProof;
+}

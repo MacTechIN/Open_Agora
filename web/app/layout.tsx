@@ -20,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div style={{ display: "flex", gap: 14, whiteSpace: "nowrap" }}>
                 {/* 앵커 기록을 찾을 수 있어야 한다. 확인 경로를 숨기면
                     앵커링은 또 하나의 "믿어 주세요"가 된다. */}
+                <a href="/map" className="muted">여론 지형도</a>
                 <a href="/anchors" className="muted">앵커 기록</a>
                 <a href="/register" className="muted">시민 인증</a>
               </div>

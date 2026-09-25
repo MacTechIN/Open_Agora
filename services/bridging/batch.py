@@ -33,6 +33,7 @@ import sys
 import urllib.error
 import urllib.request
 
+import opinion_map
 from bridging import MODEL_VERSION, SEED, Reaction, fit, snapshot_hash
 
 DEFAULT_BASE = "https://open-agora.vercel.app"
@@ -103,7 +104,37 @@ def main() -> int:
         "snapshot_hash": result.snapshot_hash,
         "scores": scores,
     })
-    print(f"저장 완료: {sent.get('stored', 0)}건")
+    print(f"점수 저장: {sent.get('stored', 0)}건")
+
+    # ── 여론 지형도 (VS-F4) ────────────────────────────────────────
+    #
+    # 좌표는 사람마다 하나씩 나오지만 **누구의 것인지는 공개하지 않는다**.
+    # 서버가 본인 확인(영지식 증명)을 거친 사람에게만 자기 위치를 돌려준다.
+    landscape = opinion_map.build(reactions)
+    print(f"지형도: 참여 {landscape.participants}명 · 군집 {landscape.k}개 "
+          f"· 실루엣 {landscape.silhouette:.3f}")
+    if landscape.small:
+        print(f"  인원 부족으로 판정에서 제외된 군집: {landscape.small}")
+
+    if landscape.k > 0:
+        mapped = _call(base, "/api/opinion-map", secret, {
+            "snapshot_hash": landscape.snapshot_hash,
+            "k": landscape.k,
+            "silhouette": landscape.silhouette,
+            "participants": landscape.participants,
+            "seed": landscape.seed,
+            "clusters": [
+                {"id": c, "size": landscape.sizes[c],
+                 "x": landscape.centroids[c][0], "y": landscape.centroids[c][1]}
+                for c in sorted(landscape.sizes)
+            ],
+            "positions": [
+                [who, place[0], place[1], place[2]]
+                for who, place in sorted(landscape.position.items())
+            ],
+        })
+        print(f"지형도 저장: {mapped.get('stored', 0)}명")
+
     return 0
 
 

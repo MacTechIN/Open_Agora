@@ -89,3 +89,51 @@ def noisy(users: dict[str, list[str]], card: str, votes: int, seed: int = 11) ->
     half = votes // 2
     chosen = users[FACTION_A][:half] + users[FACTION_B][:half]
     return [Reaction(user, card, int(rng.random() < 0.5)) for user in chosen]
+
+
+FACTION_C = "C"
+
+
+def build_three(
+    *,
+    per_faction: int = 80,
+    background_cards: int = 60,
+    seed: int = 21,
+) -> tuple[list[Reaction], dict[str, list[str]]]:
+    """진영이 셋인 데이터.
+
+    실루엣이 k 를 제대로 고르는지 보려면 둘이 아닌 경우가 있어야 합니다.
+    k=2 만 시험하면 "항상 2를 내놓는" 구현도 통과합니다.
+    """
+    rng = np.random.default_rng(seed)
+    groups = {
+        FACTION_A: _users(per_faction, FACTION_A),
+        FACTION_B: _users(per_faction, FACTION_B),
+        FACTION_C: _users(per_faction, FACTION_C),
+    }
+    names = list(groups)
+
+    reactions: list[Reaction] = []
+    for index in range(background_cards):
+        card = f"bg3{index:03d}"
+        favours = names[index % 3]
+        for faction, members in groups.items():
+            for user in members:
+                if rng.random() > 0.4:
+                    continue
+                aligned = faction == favours
+                positive = rng.random() < (0.85 if aligned else 0.12)
+                reactions.append(Reaction(user, card, 1 if positive else 0))
+
+    return reactions, groups
+
+
+def common_ground(users: dict[str, list[str]], card: str, ratio: float = 0.75,
+                  seed: int = 33) -> list[Reaction]:
+    """모든 진영이 고르게 찬성하는 카드. 합의 배너의 후보다."""
+    rng = np.random.default_rng(seed)
+    out = []
+    for members in users.values():
+        for user in members:
+            out.append(Reaction(user, card, 1 if rng.random() < ratio else 0))
+    return out

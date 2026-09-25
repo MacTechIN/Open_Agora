@@ -33,8 +33,8 @@ jobs:
 
       # 점수를 새로 내기 전에 성질이 유지되는지 먼저 본다. 깨진 모델이 낸
       # 점수를 랭킹에 쓰면 그 사이 순위가 인기투표가 된다.
-      - name: 몰표 무력화 확인 (VS-F2)
-        run: python3 -m pytest services/bridging/test_bridging.py -q
+      - name: 몰표 무력화·군집 확인 (VS-F2·F4)
+        run: python3 -m pytest services/bridging/ -q
 
       - name: 배치
         working-directory: services/bridging
