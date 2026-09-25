@@ -1,0 +1,84 @@
+{
+  "note": [
+    "온디바이스 톤 스크리닝(VS-E1)의 공용 시험 벡터.",
+    "",
+    "이 규칙은 코어(Rust)와 웹(TypeScript) 두 곳에 있다. 브라우저 안에서",
+    "돌아야 하므로 웹이 Rust 를 부를 수 없다. 두 구현이 갈리면 같은 문장이",
+    "기기마다 다르게 판정된다.",
+    "",
+    "이 파일은 core/src/screening.rs 가 만든 것이다. 손으로 고치지 않는다.",
+    "",
+    "**지금은 어휘 기반 스텁이다.** 명세는 KcELECTRA ONNX 를 요구하지만,",
+    "실측한 가장 작은 양자화판이 96MB 라 타이핑마다 도는 기기 안 모델로",
+    "쓸 수 없다. 신경망이 들어오면 이 벡터도 함께 바뀐다."
+  ],
+  "step2_threshold": 0.3,
+  "banner_threshold": 0.65,
+  "cases": [
+    {
+      "text": "탄력 근로제는 업종별로 기준을 달리해야 합니다.",
+      "score": 0.0,
+      "needs_review": false
+    },
+    {
+      "text": "이 정부의 정책은 실패했다고 봅니다",
+      "score": 0.0,
+      "needs_review": false
+    },
+    {
+      "text": "보수와 진보 모두 책임이 있습니다",
+      "score": 0.0,
+      "needs_review": false
+    },
+    {
+      "text": "",
+      "score": 0.0,
+      "needs_review": false
+    },
+    {
+      "text": "그건 좀 멍청이 같은 생각이다",
+      "score": 0.38,
+      "needs_review": true
+    },
+    {
+      "text": "ㅈㄴ 별로다",
+      "score": 0.35,
+      "needs_review": true
+    },
+    {
+      "text": "ㅅㅂ 이게 뭐냐",
+      "score": 0.55,
+      "needs_review": true
+    },
+    {
+      "text": "ㅅ.ㅂ 진짜",
+      "score": 0.55,
+      "needs_review": true
+    },
+    {
+      "text": "이건 진짜 씨발 말도 안 되는 정책이다",
+      "score": 0.7,
+      "needs_review": true
+    },
+    {
+      "text": "씨발 병신",
+      "score": 0.895,
+      "needs_review": true
+    },
+    {
+      "text": "씨발 씨발 씨발",
+      "score": 0.7,
+      "needs_review": true
+    },
+    {
+      "text": "ㄱㅅㄲ 같은 소리 하네",
+      "score": 0.7,
+      "needs_review": true
+    },
+    {
+      "text": "씨발 병신 지랄 좆 ㄱㅅㄲ 미친년",
+      "score": 0.99811,
+      "needs_review": true
+    }
+  ]
+}

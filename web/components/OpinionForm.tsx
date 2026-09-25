@@ -4,6 +4,7 @@ import { useState } from "react";
 import CountedField, { PlainField } from "./CountedField";
 import { LIMITS, graphemeCount } from "@/lib/limits";
 import { QUESTIONS, STANCE_LABEL, type Stance } from "@/lib/types";
+import ToneNotice from "@/components/ToneNotice";
 
 export interface OpinionValue {
   stance: Stance;
@@ -71,11 +72,13 @@ export default function OpinionForm({
                     limit={LIMITS.card.problemDefinition}
                     onChange={(v) => set("problem_definition", v)}
                     placeholder="예) 현행 제도가 모든 업종에 똑같이 적용되어 소상공인에게 과도한 행정 부담을 줍니다." />
+      <ToneNotice text={value.problem_definition} />
 
       <CountedField label="② 어떤 근거가 있나요?" value={value.evidence_source}
                     limit={LIMITS.card.evidenceSource}
                     onChange={(v) => set("evidence_source", v)}
                     placeholder="예) 통계청 2026년 사업체노동력조사에서 5인 미만 사업장의 행정 부담이 가장 높게 나타났습니다." />
+      <ToneNotice text={value.evidence_source} />
 
       <PlainField label="근거 자료의 출처 링크" value={value.evidence_url}
                   onChange={(v) => set("evidence_url", v)}
@@ -86,6 +89,7 @@ export default function OpinionForm({
                     limit={LIMITS.card.actionableSolution}
                     onChange={(v) => set("actionable_solution", v)}
                     placeholder="예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다." />
+      <ToneNotice text={value.actionable_solution} />
     </>
   );
 }

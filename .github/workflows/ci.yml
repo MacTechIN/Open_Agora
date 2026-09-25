@@ -121,6 +121,16 @@ jobs:
       - name: 반응자 목록 검사
         working-directory: web
         run: npm run check:privacy
+      # 톤 스크리닝은 코어와 웹 두 곳에 있다. 한쪽만 고치면 같은 문장이
+      # 기기마다 다르게 판정되고, 그 차이는 사용자가 물어볼 때에야 드러난다.
+      - name: 스크리닝 대조
+        working-directory: web
+        run: npm run check:screening
+      # 작성 중인 글이 기기 밖으로 나가면 톤 스크리닝을 기기 안에 둔 이유가
+      # 사라진다. 자동 저장·분석 도구가 무심코 들어오는 것을 막는다.
+      - name: 초안 유출 검사
+        working-directory: web
+        run: npm run check:draft
       - name: 빌드
         working-directory: web
         run: npx next build

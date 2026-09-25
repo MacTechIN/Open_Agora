@@ -15,7 +15,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const source = join(here, "../../contracts");
 const target = join(here, "../lib/generated");
 const files = ["limits.json", "validation-fixtures.json", "signing-vectors.json",
-               "anchor-vectors.json"];
+               "anchor-vectors.json",
+               "screening-vectors.json"];
 const check = process.argv.includes("--check");
 
 mkdirSync(target, { recursive: true });

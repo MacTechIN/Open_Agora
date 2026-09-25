@@ -77,6 +77,8 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
 | `scripts/check-artifacts.py` | 고정한 영지식 아티팩트가 바뀌는 것 |
 | `scripts/dkim-watch.py` | 허용 도메인의 DKIM 키 폐기·길이 하락 |
 | `web/scripts/check-no-reactor-list.mjs` | 반응자 목록이 화면·API 로 새는 것 |
+| `web/scripts/check-no-draft-leak.mjs` | 작성 중인 글이 기기 밖으로 나가는 것 |
+| `web/scripts/check-screening.mjs` | 톤 판정이 코어와 갈리는 것 |
 | `services/bridging/test_bridging.py` | **브리징이 인기투표로 퇴화하는 것 (★★)** |
 
 ### 이 저장소에서 지켜야 하는 것
@@ -96,6 +98,11 @@ CI는 `.github/workflows/ci.yml`, 배포 링크는 `release.yml`이 만듭니다
 * **scope 를 목적에 맞게 고릅니다.** 집계만 하면 되는 것(지지)은 대상마다 다른
   scope 를 써서 엮이지 않게 하고, 브리징 입력이 되는 것(반응)은 고정 scope 를
   써서 사람별 행이 생기게 합니다 (`web/lib/scope.ts`).
+* **톤 스크리닝 어휘에 정치 용어를 넣지 않습니다.** 정당·정치인·이념을
+  가리키는 말이 들어가는 순간 이 플랫폼은 막으려던 바로 그 일을 하게 됩니다.
+  코어와 웹 양쪽에 확인하는 시험이 있습니다.
+* **점수는 아무것도 막지 않습니다.** 사용자는 언제나 원문을 게시할 수 있습니다.
+  점수가 게시를 막는 순간 코치가 아니라 검열입니다.
 * **집계는 공개하고 개인은 감춥니다.** 반응자 목록은 화면에도 API 에도 두지
   않습니다. 한 줄만 더해도 그대로 목록이 되므로 게이트가 봅니다.
 * **snarkjs 는 번들하지 않습니다.** `next.config.mjs` 의 `serverExternalPackages`

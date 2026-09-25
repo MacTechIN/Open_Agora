@@ -14,7 +14,7 @@
     "check:components": "node scripts/check-nested-components.mjs",
     "check:writegate": "node scripts/check-write-gate.mjs",
     "check:imports": "node scripts/check-client-imports.mjs",
-    "check": "npm run check:contracts && npm run check:signing && npm run check:anchor && npm run check:artifacts && npm run check:components && npm run check:writegate && npm run check:imports && npm run check:privacy && npm run typecheck",
+    "check": "npm run check:contracts && npm run check:signing && npm run check:anchor && npm run check:screening && npm run check:artifacts && npm run check:components && npm run check:writegate && npm run check:imports && npm run check:privacy && npm run check:draft && npm run typecheck",
     "check:signing": "node --experimental-strip-types scripts/check-signing.mjs",
     "e2e:signing": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-signing.mjs",
     "check:anchor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-anchor.mjs",
@@ -25,7 +25,9 @@
     "check:artifacts": "python3 ../scripts/check-artifacts.py",
     "check:privacy": "node scripts/check-no-reactor-list.mjs",
     "e2e:reactions": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-reactions.mjs",
-    "e2e:bridging": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-bridging.mjs"
+    "e2e:bridging": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-bridging.mjs",
+    "check:screening": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-screening.mjs",
+    "check:draft": "node scripts/check-no-draft-leak.mjs"
   },
   "dependencies": {
     "@scure/bip39": "^1.5.4",
