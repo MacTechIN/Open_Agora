@@ -39,6 +39,22 @@ public sealed class OpinionForm : UserControl
     private readonly TextBlock _problemCount = Caption();
     private readonly TextBlock _evidenceCount = Caption();
     private readonly TextBlock _solutionCount = Caption();
+
+    /// <summary>
+    /// 톤 스크리닝 안내 (VS-E1).
+    ///
+    /// 세 본문 칸을 함께 보고 한 줄만 띄운다. 칸마다 띄우면 잔소리가 되고,
+    /// 잔소리가 되면 사용자가 읽지 않는다.
+    /// </summary>
+    private readonly TextBlock _tone = new()
+    {
+        FontSize = 12,
+        TextWrapping = TextWrapping.Wrap,
+        Visibility = Visibility.Collapsed,
+        Foreground = new SolidColorBrush(global::Windows.UI.Color.FromArgb(255, 217, 164, 65)),
+        Text = "거친 표현이 섞여 있을 수 있습니다. 그대로 올리셔도 됩니다 — "
+             + "다만 논거가 표현에 가려지면 반대편이 읽지 않습니다.",
+    };
     private readonly Button _submit = new() { Content = "등록", HorizontalAlignment = HorizontalAlignment.Stretch };
 
     /// <summary>등록을 눌렀을 때. 폼이 유효할 때만 불린다.</summary>
@@ -84,6 +100,7 @@ public sealed class OpinionForm : UserControl
 
         root.Children.Add(Field(_solutionLabel, _solutionCount, _solution,
             "예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다."));
+        root.Children.Add(_tone);
         root.Children.Add(_submit);
         root.Children.Add(Caption("올린 글은 수정하거나 지울 수 없습니다."));
 
@@ -141,7 +158,37 @@ public sealed class OpinionForm : UserControl
         Show(_problemCount, Count(_problem.Text), MaxProblem);
         Show(_evidenceCount, Count(_evidence.Text), MaxEvidence);
         Show(_solutionCount, Count(_solution.Text), MaxSolution);
+        ShowTone();
         _submit.IsEnabled = IsReady();
+    }
+
+    /// <summary>
+    /// 톤 스크리닝 (VS-E1).
+    ///
+    /// **기기 안에서만 돈다.** 코어를 부를 뿐 네트워크를 쓰지 않는다 —
+    /// 쓰다 만 말은 쓴 말보다 사람을 더 많이 드러낸다.
+    ///
+    /// 점수도 걸린 표현도 보여주지 않는다. 점수를 보여주면 점수를 낮추는
+    /// 글쓰기를 하게 되고, 걸린 표현을 보여주면 그것을 피해 쓰는 법을 알려
+    /// 주는 셈이 된다.
+    ///
+    /// **막지 않는다.** 등록 버튼은 그대로다.
+    /// </summary>
+    private void ShowTone()
+    {
+        var text = $"{_problem.Text}\n{_evidence.Text}\n{_solution.Text}";
+        bool flagged;
+        try
+        {
+            flagged = CivicagoraMethods.Screen(text).needsReview;
+        }
+        catch
+        {
+            // 스크리닝이 실패해도 글쓰기를 막지 않는다. 코치가 고장 났다고
+            // 사용자가 글을 못 쓸 이유는 없다.
+            flagged = false;
+        }
+        _tone.Visibility = flagged ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>글자 수는 코어와 같은 기준으로 센다. 따로 세면 기준이 갈린다.</summary>

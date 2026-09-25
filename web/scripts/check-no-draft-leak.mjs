@@ -22,9 +22,11 @@ import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
+const repo = join(here, "../..");
 
-/** 네트워크를 부르는 흔적. */
-const NETWORK = /\b(fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource)\b/;
+/** 네트워크를 부르는 흔적. 플랫폼마다 이름이 다르다. */
+const NETWORK =
+  /\b(fetch|XMLHttpRequest|sendBeacon|WebSocket|EventSource|HttpClient|SendAsync|HttpURLConnection|URLSession|ApiClient)\b/;
 
 function stripComments(source) {
   return source
@@ -47,14 +49,19 @@ else ok("lib/screening.ts  네트워크 호출 없음");
 // 2) 본문 입력 컴포넌트가 제출 밖에서 네트워크를 부르지 않아야 한다.
 //    타이핑 중 도는 코드(useEffect, onChange)와 네트워크가 같은 파일에
 //    있으면, 초안이 나갈 길이 생긴 것이다.
+//    **네 플랫폼 모두** 본다. 보장이 한 곳에만 걸리면 보장이 아니다.
 const COMPOSERS = [
-  "components/OpinionForm.tsx",
-  "components/CountedField.tsx",
+  [root, "components/OpinionForm.tsx"],
+  [root, "components/CountedField.tsx"],
+  [root, "components/ToneNotice.tsx"],
+  [repo, "apps/windows/OpinionForm.cs"],
+  [repo, "apps/android/app/src/main/kotlin/org/civicagora/app/OpinionForm.kt"],
+  [repo, "apps/ios/CivicAgora/OpinionFormView.swift"],
 ];
-for (const rel of COMPOSERS) {
+for (const [base, rel] of COMPOSERS) {
   let source;
   try {
-    source = stripComments(readFileSync(join(root, rel), "utf8"));
+    source = stripComments(readFileSync(join(base, rel), "utf8"));
   } catch {
     bad(rel, "파일이 없습니다. 이름이 바뀌었으면 이 목록도 고치십시오");
     continue;

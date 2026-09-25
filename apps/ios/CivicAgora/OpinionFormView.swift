@@ -43,6 +43,20 @@ struct OpinionFormView: View {
             && !url.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// 톤 스크리닝 (VS-E1).
+    ///
+    /// **기기 안에서만 돕니다.** 코어를 부를 뿐 네트워크를 쓰지 않습니다 —
+    /// 쓰다 만 말은 쓴 말보다 사람을 더 많이 드러냅니다.
+    ///
+    /// 세 본문 칸을 함께 보고 한 줄만 띄웁니다. 칸마다 띄우면 잔소리가 되고,
+    /// 잔소리가 되면 읽지 않습니다.
+    ///
+    /// 스크리닝이 실패해도 글쓰기를 막지 않습니다 — 코치가 고장 났다고
+    /// 사용자가 글을 못 쓸 이유는 없습니다.
+    private var rough: Bool {
+        screen(text: "\(problem)\n\(evidence)\n\(solution)").needsReview
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("어떤 입장이신가요?").font(.subheadline.bold())
@@ -85,6 +99,18 @@ struct OpinionFormView: View {
                 limit: Limits.solution,
                 prompt: "예) 업종별로 기준을 나누고, 소규모 사업장에는 신고 절차를 간소화합니다."
             )
+
+            if rough {
+                // 점수도 걸린 표현도 보여주지 않습니다. 점수를 보여주면 점수를
+                // 낮추는 글쓰기를 하게 되고, 걸린 표현을 보여주면 그것을 피해
+                // 쓰는 법을 알려 주는 셈이 됩니다.
+                //
+                // **막지 않습니다.** 아래 등록 버튼은 그대로입니다.
+                Text("거친 표현이 섞여 있을 수 있습니다. 그대로 올리셔도 됩니다 — "
+                     + "다만 논거가 표현에 가려지면 반대편이 읽지 않습니다.")
+                    .font(.caption)
+                    .foregroundStyle(Color(red: 0xD9 / 255, green: 0xA4 / 255, blue: 0x41 / 255))
+            }
 
             Button {
                 onSubmit(DraftCard(
