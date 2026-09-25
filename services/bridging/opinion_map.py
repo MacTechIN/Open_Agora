@@ -44,6 +44,14 @@ K_RANGE = range(2, 6)
 #: 이 인원 미만의 군집은 찬성률을 내지 않는다 (INV-5).
 MIN_CLUSTER_SIZE = 20
 
+#: 1차 관문 — 합의 배너 승격. 모든 군집에서 이 값 이상 (명세 §2.2).
+BANNER_THRESHOLD = 0.60
+
+#: 2차 관문 — 대정부 브리프 수록. 더 엄격하다. 판정은 H1 에서 하고
+#: 여기서는 계산에 필요한 값(군집별 찬성률)만 낸다.
+BRIEF_THRESHOLD = 0.65
+BRIEF_MAX_GAP = 0.05
+
 #: 지형도를 공개할 최소 참여 인원 (INV-5, 안건 50명 기준).
 MIN_PARTICIPANTS = 50
 
@@ -241,3 +249,15 @@ def consensus(
         card: {cluster: sum(values) / len(values) for cluster, values in per.items()}
         for card, per in counted.items()
     }
+
+
+def qualifies(rates: dict[int, float], *, threshold: float = BANNER_THRESHOLD) -> bool:
+    """모든 군집에서 문턱을 넘었는가.
+
+    **군집이 둘 미만이면 합의가 아닙니다.** 한 군집만 있는 상태에서 "모든
+    군집이 찬성했다"는 말은 "그 한 무리가 찬성했다"와 같고, 그것은 진영을
+    넘은 합의가 아니라 그냥 다수결입니다.
+    """
+    if len(rates) < 2:
+        return False
+    return min(rates.values()) >= threshold

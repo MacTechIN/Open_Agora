@@ -135,6 +135,25 @@ def main() -> int:
         })
         print(f"지형도 저장: {mapped.get('stored', 0)}명")
 
+        # ── 군집별 찬성률 (VS-F5) ──────────────────────────────────
+        #
+        # 인원 20명 미만 군집은 빠진다(INV-5). 승격 판정은 서버가 한다 —
+        # 어느 카드가 ALTERNATIVE 인지는 배치가 모르고, 알 필요도 없다.
+        rates = opinion_map.consensus(reactions, landscape)
+        ready = [c for c, per in rates.items()
+                 if opinion_map.qualifies(per)]
+        print(f"합의율: 카드 {len(rates)}건 · 1차 관문 통과 {len(ready)}건")
+
+        saved = _call(base, "/api/consensus", secret, {
+            "snapshot_hash": landscape.snapshot_hash,
+            "rates": [
+                {"card_id": card, "cluster": cluster, "rate": rate}
+                for card, per in sorted(rates.items())
+                for cluster, rate in sorted(per.items())
+            ],
+        })
+        print(f"합의율 저장: {saved.get('stored', 0)}건")
+
     return 0
 
 

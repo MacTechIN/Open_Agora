@@ -116,3 +116,38 @@ def test_양_진영이_찬성한_카드는_모든_군집에서_높다():
     oneside = rates["card-oneside"]
     # 한쪽만 반응했으므로 다른 군집에는 자료가 없거나 값이 낮다.
     assert len(oneside) < len(common) or min(oneside.values()) < 0.60
+
+
+# ── 합의 판정 (VS-F5) ──────────────────────────────────────────────
+
+def test_양_진영_찬성_카드가_관문을_통과한다():
+    reactions, users = synthetic.build(per_faction=120, background_cards=50)
+    reactions += synthetic.common_ground(users, "card-common", ratio=0.8)
+    result = mapper.build(reactions)
+    rates = mapper.consensus(reactions, result)
+    assert mapper.qualifies(rates["card-common"])
+
+
+def test_한_진영만_찬성한_카드는_통과하지_못한다():
+    """군집이 하나뿐이면 합의가 아니다 — 그냥 다수결이다."""
+    reactions, users = synthetic.build(per_faction=120, background_cards=50)
+    reactions += [synthetic.Reaction(u, "card-oneside", 1) for u in users["A"]]
+    result = mapper.build(reactions)
+    rates = mapper.consensus(reactions, result)
+    assert not mapper.qualifies(rates["card-oneside"]), (
+        f"한 진영만 눌렀는데 통과했다: {rates['card-oneside']}"
+    )
+
+
+def test_한_군집이라도_문턱에_못_미치면_통과하지_못한다():
+    """평균이 아니라 최솟값으로 판정한다."""
+    assert not mapper.qualifies({0: 0.95, 1: 0.55})
+    assert mapper.qualifies({0: 0.61, 1: 0.60})
+
+
+def test_이차_관문이_일차보다_엄격하다():
+    """브리프 수록 기준(0.65)은 배너 기준(0.60)보다 높아야 한다."""
+    assert mapper.BRIEF_THRESHOLD > mapper.BANNER_THRESHOLD
+    rates = {0: 0.62, 1: 0.63}
+    assert mapper.qualifies(rates)
+    assert not mapper.qualifies(rates, threshold=mapper.BRIEF_THRESHOLD)

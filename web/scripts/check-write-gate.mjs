@@ -66,6 +66,7 @@ const OPERATOR = {
   "app/api/anchor/build/route.ts": "ANCHOR_SECRET",
   "app/api/bridging/scores/route.ts": "BRIDGING_SECRET",
   "app/api/opinion-map/route.ts": "BRIDGING_SECRET",
+  "app/api/consensus/route.ts": "BRIDGING_SECRET",
 };
 
 let failed = 0;

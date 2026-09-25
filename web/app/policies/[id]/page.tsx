@@ -7,6 +7,8 @@ import Endorse from "./Endorse";
 import Reactions from "@/components/Reactions";
 import Replies from "./Replies";
 import { repliesFor, type Reply } from "@/lib/replies";
+import ConsensusBanner from "@/components/ConsensusBanner";
+import { pickBanner, ratesFor, type ClusterRate } from "@/lib/consensus";
 import { countsFor, scoresFor, type CardScore } from "@/lib/reactions";
 import { countFor } from "@/lib/anon";
 import { hashScopeServer } from "@/lib/scope";
@@ -38,6 +40,8 @@ async function load(id: string) {
     scores: await scoresFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
     // 댓글 (VS-D3). 한 단계만 있다.
     replies: await repliesFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
+    // 군집별 찬성률 (VS-F5). 합의 배너 판정에 쓴다.
+    consensus: await ratesFor((opinions as unknown as DebateCard[]).map((c) => c.id)),
   };
 }
 
@@ -57,20 +61,38 @@ function order(cards: DebateCard[], scores: Record<string, CardScore>): DebateCa
   return [...scored, ...fresh];
 }
 
-function Column({ stance, cards, reactions, scores, replies }: {
+function Column({ stance, cards, reactions, scores, replies, consensus }: {
   stance: Stance;
   cards: DebateCard[];
   reactions: Record<string, Record<string, number>>;
   scores: Record<string, CardScore>;
   replies: Record<string, Reply[]>;
+  consensus: Record<string, ClusterRate[]>;
 }) {
-  const mine = order(cards.filter((c) => c.stance === stance), scores);
+  const inColumn = cards.filter((c) => c.stance === stance);
+
+  // 합의 배너는 가운데 열에만 오른다. 대안이 아닌 카드는 진영을 넘었다
+  // 해도 "합의"가 아니라 한쪽의 주장이다.
+  const banner = stance === "ALTERNATIVE" ? pickBanner(inColumn, consensus) : null;
+  const mine = order(
+    banner ? inColumn.filter((c) => c.id !== banner.card.id) : inColumn,
+    scores
+  );
   return (
     <div>
       <h3 className={stance}>
         {stance === "ALTERNATIVE" ? "대안 · 합의" : STANCE_LABEL[stance]} {mine.length}
       </h3>
-      {mine.length === 0 && <div className="muted" style={{ textAlign: "center", padding: 12 }}>아직 없습니다</div>}
+      {banner && (
+        <ConsensusBanner
+          problem={banner.card.problem_definition}
+          solution={banner.card.actionable_solution}
+          rates={banner.rates}
+        />
+      )}
+      {mine.length === 0 && !banner && (
+        <div className="muted" style={{ textAlign: "center", padding: 12 }}>아직 없습니다</div>
+      )}
       {mine.map((c) => (
         <div key={c.id} className="card" style={{ padding: 14 }}>
           {c.id in scores ? (
@@ -122,7 +144,7 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
-  const { policy, opinions, anchor, endorsements, reactions, scores, replies } = data;
+  const { policy, opinions, anchor, endorsements, reactions, scores, replies, consensus } = data;
 
   return (
     <>
@@ -170,11 +192,11 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
       <h2 style={{ fontSize: 18, marginTop: 28 }}>의견 {opinions.length}건</h2>
       <div className="columns">
         <Column stance="SUPPORT" cards={opinions} reactions={reactions} scores={scores}
-                replies={replies} />
+                replies={replies} consensus={consensus} />
         <Column stance="ALTERNATIVE" cards={opinions} reactions={reactions} scores={scores}
-                replies={replies} />
+                replies={replies} consensus={consensus} />
         <Column stance="OPPOSE" cards={opinions} reactions={reactions} scores={scores}
-                replies={replies} />
+                replies={replies} consensus={consensus} />
       </div>
 
       <AddOpinion policyId={policy.id} question={policy.core_question} />
