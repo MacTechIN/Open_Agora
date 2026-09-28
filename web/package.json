@@ -30,13 +30,15 @@
     "check:draft": "node scripts/check-no-draft-leak.mjs",
     "e2e:replies": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-replies.mjs",
     "e2e:map": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-opinion-map.mjs",
-    "e2e:consensus": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-consensus.mjs"
+    "e2e:consensus": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-consensus.mjs",
+    "e2e:brief": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/e2e-brief.mjs"
   },
   "dependencies": {
     "@scure/bip39": "^1.5.4",
     "@semaphore-protocol/group": "^4.14.3",
     "@semaphore-protocol/identity": "^4.14.3",
     "@semaphore-protocol/proof": "^4.14.3",
+    "docx": "^9.8.0",
     "next": "^15.5.25",
     "postgres": "3.4.5",
     "react": "19.0.0",

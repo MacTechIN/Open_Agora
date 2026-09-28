@@ -173,3 +173,14 @@ a.plain:hover .card, a.plain:hover .line { border-color: var(--accent); }
   .tabs { overflow-x: auto; }
   .line .dist { width: 56px; }
 }
+
+/* 권고서 인쇄 — PDF 는 브라우저 인쇄로 만든다(VS-H1). 화면 장치는 빼고
+   본문만 남긴다. 머리말·버튼이 함께 찍히면 기관에 내는 문서로 못 쓴다. */
+@media print {
+  header, nav, footer, button, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  main { max-width: none; padding: 0; }
+  .card { border: none; background: #fff; box-shadow: none; padding: 0; margin: 0; }
+  a { color: #000; }
+  pre { font-size: 11pt; }
+}

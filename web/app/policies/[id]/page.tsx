@@ -183,6 +183,13 @@ export default async function PolicyDetail({ params }: { params: Promise<{ id: s
         </div>
 
         <AnchorNotice proof={anchor} />
+
+        {/* 이 공론장의 산출물. 회원이 내려받아 본인 명의로 씁니다(D18) —
+            그래서 눈에 띄는 자리에 둡니다. 어디로 가는지 모르면 산출물은
+            없는 것과 같습니다. */}
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+          <Link href={`/policies/${policy.id}/brief`}>정책 권고서 보기 · 내려받기 →</Link>
+        </div>
       </div>
 
       <Endorse policyId={policy.id} initial={endorsements} />
