@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, ConfigError, emailAlreadyUsed, hashEmail, issueCode, migrateAuth } from "@/lib/auth";
+import { AuthError, ConfigError, hashEmail, issueCode, migrateAuth } from "@/lib/auth";
 import { MailError, sendVerificationCode } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 
-/** 인증코드를 요청한다. */
+/**
+ * 인증코드를 요청한다.
+ *
+ * **이미 가입한 이메일도 코드를 받습니다.** 한 사람이 기기를 5대까지
+ * 등록하므로(D21), 기기를 바꾸거나 앱을 새로 깔면 반드시 다시 여기를
+ * 지나야 합니다. 여기서 막으면 D21 이 코드로는 있으나 아무도 쓸 수 없습니다.
+ *
+ * **가입 여부를 응답에 담지 않습니다.** 담으면 아무나 남의 주소를 넣어
+ * 그 사람이 회원인지 알아낼 수 있습니다. 이 플랫폼은 어떤 글이 누구의
+ * 것인지조차 저장하지 않는데, 회원 명단을 조회하게 두면 그 노력이
+ * 무의미해집니다. 그래서 어떤 주소를 넣든 응답은 똑같습니다.
+ *
+ * 기기 상한은 **코드를 맞힌 뒤에** 알립니다 — 그 메시지는 메일함을 가진
+ * 사람에게만 닿아야 합니다. 남용은 시간당 요청 수로 막습니다.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
@@ -16,10 +30,6 @@ export async function POST(request: NextRequest) {
 
     await migrateAuth();
     const emailHash = hashEmail(address);
-
-    if (await emailAlreadyUsed(emailHash)) {
-      throw new AuthError("이미 가입한 이메일입니다.");
-    }
 
     const code = await issueCode(emailHash);
     await sendVerificationCode(address, code);

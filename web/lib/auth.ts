@@ -132,13 +132,6 @@ export class AuthError extends Error {}
  */
 const MAX_DEVICES = 5;
 
-/** 이메일이 이미 가입했는가. */
-export async function emailAlreadyUsed(emailHash: string): Promise<boolean> {
-  const db = requireDb();
-  const rows = await db`SELECT 1 FROM consumed_emails WHERE email_hash = ${emailHash}`;
-  return rows.length > 0;
-}
-
 /** DID 가 회원인가. 글쓰기 모든 경로에서 확인한다. */
 export async function isMember(did: string): Promise<boolean> {
   const db = requireDb();
